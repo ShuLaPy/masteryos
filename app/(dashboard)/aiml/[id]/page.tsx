@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Brain, Sparkles, BookOpen, Clock } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { RelatedConcepts } from "@/components/app/RelatedConcepts";
 
 export const metadata = { title: "Concept Details — MasteryOS" };
 
@@ -106,6 +107,8 @@ export default async function AIMLConceptPage({ params }: { params: Promise<{ id
               )}
             </div>
           </div>
+
+          <RelatedConcepts sourceId={concept.id} sourceType="aiml_concept" />
         </div>
       </div>
     </div>

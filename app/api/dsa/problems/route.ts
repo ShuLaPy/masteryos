@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { generateJSON } from "@/lib/openai";
+import { generateJSON, generateEmbedding } from "@/lib/openai";
 import { newCard, fsrsCardToDB } from "@/lib/fsrs";
+import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -76,6 +77,26 @@ Respond ONLY with a JSON object containing a single key "cards" which is an arra
         }
       }
     }
+  }
+
+  // 3. Generate embedding for semantic search (non-blocking)
+  try {
+    const embeddingContent = [title, difficulty ? `Difficulty: ${difficulty}` : "", patterns?.length ? `Patterns: ${patterns.join(", ")}` : "", approach_notes || ""].filter(Boolean).join("\n");
+    if (embeddingContent.length >= 10) {
+      const contentHash = crypto.createHash("sha256").update(embeddingContent).digest("hex");
+      const { data: embedding } = await generateEmbedding(embeddingContent);
+      if (embedding) {
+        await supabase.from("concept_embeddings").insert({
+          user_id: user.id,
+          source_type: "dsa_problem",
+          source_id: problem.id,
+          content_hash: contentHash,
+          embedding: JSON.stringify(embedding),
+        });
+      }
+    }
+  } catch {
+    // Embedding generation failure shouldn't block problem creation
   }
 
   return Response.json({ success: true, problem, cards_generated: cardsGenerated });

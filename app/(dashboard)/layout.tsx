@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Sidebar from "@/components/app/Sidebar";
+import { SemanticSearch } from "@/components/app/SemanticSearch";
 
 export default async function DashboardLayout({
   children,
@@ -40,6 +41,9 @@ export default async function DashboardLayout({
         displayName={profile?.display_name ?? undefined}
       />
       <main className="flex-1 min-h-screen overflow-y-auto">
+        <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-sm border-b border-border/40 px-6 py-3">
+          <SemanticSearch />
+        </div>
         {children}
       </main>
     </div>

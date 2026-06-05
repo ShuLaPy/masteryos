@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { InsightCards } from "@/components/app/InsightCards";
 
 interface MentorContext {
   userId: string;
@@ -402,6 +403,9 @@ export default function MentorHomeClient({ ctx }: { ctx: MentorContext }) {
             })}
           </div>
         </div>
+
+        {/* Cross-Domain Insights */}
+        <InsightCards />
 
         {/* Links to analytics */}
         <Link href="/analytics">

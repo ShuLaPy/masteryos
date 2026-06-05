@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { generateJSON } from "@/lib/openai";
+import { generateJSON, generateEmbedding } from "@/lib/openai";
 import { newCard, fsrsCardToDB } from "@/lib/fsrs";
+import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -69,6 +70,26 @@ Respond ONLY with a JSON object containing a single key "cards", which is an arr
         }
       }
     }
+  }
+
+  // 3. Generate embedding for semantic search (non-blocking — don't fail the request)
+  try {
+    const embeddingContent = [title, concept_type ? `Type: ${concept_type}` : "", notes || "", tags?.length ? `Tags: ${tags.join(", ")}` : ""].filter(Boolean).join("\n");
+    if (embeddingContent.length >= 10) {
+      const contentHash = crypto.createHash("sha256").update(embeddingContent).digest("hex");
+      const { data: embedding } = await generateEmbedding(embeddingContent);
+      if (embedding) {
+        await supabase.from("concept_embeddings").insert({
+          user_id: user.id,
+          source_type: "aiml_concept",
+          source_id: concept.id,
+          content_hash: contentHash,
+          embedding: JSON.stringify(embedding),
+        });
+      }
+    }
+  } catch {
+    // Embedding generation failure shouldn't block concept creation
   }
 
   return Response.json({ success: true, concept, cards_generated: generatedCards });

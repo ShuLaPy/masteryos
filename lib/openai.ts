@@ -90,3 +90,22 @@ export async function* streamText(
     }
   }
 }
+
+/**
+ * Generate embedding vector for text using text-embedding-3-small (1536 dims)
+ */
+export async function generateEmbedding(
+  text: string
+): Promise<{ data: number[] | null; error: string | null }> {
+  try {
+    const response = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: text.slice(0, 8000), // Cap input length
+    });
+    const embedding = response.data[0]?.embedding ?? null;
+    return { data: embedding, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return { data: null, error: message };
+  }
+}
