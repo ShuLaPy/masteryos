@@ -4,6 +4,34 @@ import { generateJSON, generateEmbedding } from "@/lib/openai";
 import { newCard, fsrsCardToDB } from "@/lib/fsrs";
 import crypto from "crypto";
 
+export async function PATCH(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return new Response("Unauthorized", { status: 401 });
+
+  const body = await request.json();
+  const { id, prerequisites } = body;
+
+  if (!id) return Response.json({ error: "Concept id is required" }, { status: 400 });
+  if (!Array.isArray(prerequisites)) {
+    return Response.json({ error: "prerequisites must be an array" }, { status: 400 });
+  }
+
+  const { data, error } = await supabase
+    .from("aiml_concepts")
+    .update({ prerequisites })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select("id, prerequisites")
+    .single();
+
+  if (error || !data) {
+    return Response.json({ error: "Failed to update prerequisites" }, { status: 500 });
+  }
+
+  return Response.json({ success: true, prerequisites: data.prerequisites });
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

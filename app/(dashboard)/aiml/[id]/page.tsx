@@ -4,6 +4,7 @@ import { ArrowLeft, Brain, Sparkles, BookOpen, Clock } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { RelatedConcepts } from "@/components/app/RelatedConcepts";
+import { PrerequisitesEditor } from "@/components/app/PrerequisitesEditor";
 
 export const metadata = { title: "Concept Details — MasteryOS" };
 
@@ -109,6 +110,11 @@ export default async function AIMLConceptPage({ params }: { params: Promise<{ id
           </div>
 
           <RelatedConcepts sourceId={concept.id} sourceType="aiml_concept" />
+
+          <PrerequisitesEditor
+            conceptId={concept.id}
+            initialPrerequisites={concept.prerequisites ?? []}
+          />
         </div>
       </div>
     </div>
