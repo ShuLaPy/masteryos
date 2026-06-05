@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
   if (!user) return new Response("Unauthorized", { status: 401 });
 
   const body = await request.json();
-  const { title, week_number, concept_type, notes, tags, source } = body;
+  const { title, week_number, concept_type, notes, tags, source, prerequisites } = body;
 
   if (!title) return Response.json({ error: "Title is required" }, { status: 400 });
 
@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
       notes,
       tags,
       source,
+      prerequisites: Array.isArray(prerequisites) ? prerequisites : [],
     })
     .select()
     .single();

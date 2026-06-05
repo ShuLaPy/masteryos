@@ -45,6 +45,7 @@ export default function ReviewClient({ cards, userId }: ReviewClientProps) {
     again: 0, hard: 0, good: 0, easy: 0,
   });
   const [startTime, setStartTime] = useState(Date.now());
+  const [confidence, setConfidence] = useState<number | null>(null);
 
   const total = cards.length;
   const reviewed = currentIdx;
@@ -78,7 +79,12 @@ export default function ReviewClient({ cards, userId }: ReviewClientProps) {
       const res = await fetch("/api/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ card_id: current.id, rating, duration_seconds: duration }),
+        body: JSON.stringify({
+          card_id: current.id,
+          rating,
+          duration_seconds: duration,
+          confidence_predicted: confidence,
+        }),
       });
 
       if (!res.ok) {
@@ -94,6 +100,7 @@ export default function ReviewClient({ cards, userId }: ReviewClientProps) {
       } else {
         setCurrentIdx((i) => i + 1);
         setFlipped(false);
+        setConfidence(null);
         setStartTime(Date.now());
       }
     } catch {
@@ -248,6 +255,27 @@ export default function ReviewClient({ cards, userId }: ReviewClientProps) {
                 exit={{ opacity: 0, y: 12 }}
                 className="mt-6 space-y-3"
               >
+                <div className="mb-4">
+                  <p className="text-center text-xs text-muted-foreground mb-2">
+                    How confident were you before revealing? (optional)
+                  </p>
+                  <div className="flex justify-center gap-2">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setConfidence(confidence === n ? null : n)}
+                        className={`w-9 h-9 rounded-lg border text-sm font-medium transition-all ${
+                          confidence === n
+                            ? "bg-primary/20 border-primary/40 text-primary"
+                            : "border-border/60 text-muted-foreground hover:border-primary/30"
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <p className="text-center text-xs text-muted-foreground mb-3">
                   How well did you recall this?
                 </p>

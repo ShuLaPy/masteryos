@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
 
 const CONCEPT_TYPES = ["theory", "math", "implementation", "system", "all"];
+
+interface ExistingConcept {
+  id: string;
+  title: string;
+}
 
 export default function NewConceptPage() {
   const router = useRouter();
@@ -29,6 +35,21 @@ export default function NewConceptPage() {
     source: "self_study",
   });
   const [tagInput, setTagInput] = useState("");
+  const [prerequisites, setPrerequisites] = useState<string[]>([]);
+  const [existingConcepts, setExistingConcepts] = useState<ExistingConcept[]>([]);
+  const [prereqSearch, setPrereqSearch] = useState("");
+
+  useEffect(() => {
+    async function loadConcepts() {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("aiml_concepts")
+        .select("id, title")
+        .order("title");
+      if (data) setExistingConcepts(data);
+    }
+    loadConcepts();
+  }, []);
 
   function addTag() {
     const t = tagInput.trim().toLowerCase();
@@ -54,6 +75,7 @@ export default function NewConceptPage() {
         body: JSON.stringify({
           ...form,
           week_number: form.week_number ? parseInt(form.week_number) : null,
+          prerequisites,
         }),
       });
       const data = await res.json();
@@ -186,6 +208,59 @@ export default function NewConceptPage() {
             onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
             className="bg-secondary/50 border-border/60 focus:border-primary/60 min-h-48 resize-none font-mono text-sm"
           />
+        </div>
+
+        {/* Prerequisites */}
+        <div className="space-y-2">
+          <Label>Prerequisites</Label>
+          <Input
+            placeholder="Search existing concepts..."
+            value={prereqSearch}
+            onChange={(e) => setPrereqSearch(e.target.value)}
+            className="bg-secondary/50 border-border/60 focus:border-primary/60"
+          />
+          {prerequisites.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {prerequisites.map((id) => {
+                const concept = existingConcepts.find((c) => c.id === id);
+                return (
+                  <Badge key={id} variant="secondary" className="gap-1 pr-1 text-xs">
+                    {concept?.title ?? id.slice(0, 8)}
+                    <button
+                      type="button"
+                      onClick={() => setPrerequisites((p) => p.filter((x) => x !== id))}
+                    >
+                      <X className="w-3 h-3 hover:text-destructive" />
+                    </button>
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
+          {prereqSearch && (
+            <div className="max-h-32 overflow-y-auto rounded-lg border border-border/60 bg-secondary/30">
+              {existingConcepts
+                .filter(
+                  (c) =>
+                    c.title.toLowerCase().includes(prereqSearch.toLowerCase()) &&
+                    !prerequisites.includes(c.id)
+                )
+                .slice(0, 8)
+                .map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      setPrerequisites((p) => [...p, c.id]);
+                      setPrereqSearch("");
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-primary/10 transition-colors"
+                  >
+                    {c.title}
+                  </button>
+                ))}
+            </div>
+          )}
         </div>
 
         {/* Tags */}

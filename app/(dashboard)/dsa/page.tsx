@@ -5,10 +5,9 @@ import { Plus, Code2, Sparkles, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { getPatternBreakdown } from "@/lib/analytics";
 
 export const metadata = { title: "DSA Track — MasteryOS" };
-
-import { DSA_PATTERNS } from "@/lib/constants";
 
 function difficultyColor(diff: string) {
   if (diff === "easy") return "text-emerald-400 bg-emerald-500/15 border-emerald-500/25";
@@ -37,13 +36,7 @@ export default async function DSATrackPage() {
   const problems = problemsRes.data ?? [];
   const totalCards = cardCountRes.count ?? 0;
 
-  // Calculate pattern mastery stats
-  const patternStats = DSA_PATTERNS.map((p) => {
-    const pProbs = problems.filter((prob) => (prob.patterns ?? []).includes(p));
-    const count = pProbs.length;
-    const avgConfidence = count > 0 ? pProbs.reduce((acc, curr) => acc + (curr.confidence ?? 0), 0) / count : 0;
-    return { pattern: p, count, avgConfidence };
-  }).sort((a, b) => b.count - a.count); // Sort by most practiced
+  const patternStats = getPatternBreakdown(problems);
 
   return (
     <div className="p-6 max-w-5xl mx-auto">

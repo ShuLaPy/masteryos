@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   if (!user) return new Response("Unauthorized", { status: 401 });
 
   const body = await request.json();
-  const { card_id, rating, duration_seconds } = body;
+  const { card_id, rating, duration_seconds, confidence_predicted } = body;
 
   if (!card_id || !rating || rating < 1 || rating > 4) {
     return Response.json({ error: "Invalid parameters" }, { status: 400 });
@@ -52,6 +52,10 @@ export async function POST(request: NextRequest) {
       card_id,
       rating,
       duration_seconds: duration_seconds ?? 0,
+      confidence_predicted:
+        confidence_predicted >= 1 && confidence_predicted <= 5
+          ? confidence_predicted
+          : null,
       stability_before: card.stability,
       stability_after: updatedCard.stability,
       retrievability_at_review:

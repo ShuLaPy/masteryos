@@ -64,6 +64,7 @@ create table public.reviews (
   stability_after double precision not null,
   retrievability_at_review double precision not null,
   scheduled_days_after integer not null,
+  confidence_predicted integer check (confidence_predicted is null or (confidence_predicted between 1 and 5)),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -84,6 +85,7 @@ create table public.aiml_concepts (
   tags text[],
   source text,
   mastery_score double precision default 0, -- 0.0 to 1.0 (from Feynman eval)
+  prerequisites uuid[] default '{}',
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
