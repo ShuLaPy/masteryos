@@ -91,32 +91,44 @@ export default async function DSATrackPage() {
           )}
 
           {problems.map((prob) => (
-            <div key={prob.id} className="glass rounded-xl p-4 hover:border-emerald-500/30 transition-colors">
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-foreground">{prob.title}</h3>
-                  {prob.url && (
-                    <a href={prob.url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-emerald-400">
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  )}
+            /* Row: the card Link takes most space; external link is a sibling button at the end.
+               No nested anchors, no event handlers on server components. */
+            <div key={prob.id} className="flex items-stretch gap-2 group">
+              <Link href={`/dsa/${prob.id}`} className="flex-1 min-w-0">
+                <div className="glass rounded-xl p-4 h-full hover:border-emerald-500/30 group-hover:bg-emerald-500/5 transition-colors">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-medium text-foreground group-hover:text-emerald-400 transition-colors">
+                      {prob.title}
+                    </h3>
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                      <Badge className={`capitalize text-[10px] px-1.5 py-0 h-4 border ${difficultyColor(prob.difficulty)}`}>
+                        {prob.difficulty}
+                      </Badge>
+                      <span className="text-xs font-bold text-foreground bg-secondary px-2 py-0.5 rounded-md">
+                        {prob.confidence}/5
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {(prob.patterns ?? []).map((p: string) => (
+                      <Badge key={p} variant="outline" className="text-[10px] border-border/60 text-muted-foreground">
+                        {p}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge className={`capitalize text-[10px] px-1.5 py-0 h-4 border ${difficultyColor(prob.difficulty)}`}>
-                    {prob.difficulty}
-                  </Badge>
-                  <span className="text-xs font-bold text-foreground bg-secondary px-2 py-0.5 rounded-md">
-                    {prob.confidence}/5
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {(prob.patterns ?? []).map((p: string) => (
-                  <Badge key={p} variant="outline" className="text-[10px] border-border/60 text-muted-foreground">
-                    {p}
-                  </Badge>
-                ))}
-              </div>
+              </Link>
+              {prob.url && (
+                <a
+                  href={prob.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`Open ${prob.title} on external site`}
+                  className="glass rounded-xl px-3 flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:border-emerald-500/30 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
             </div>
           ))}
         </div>
