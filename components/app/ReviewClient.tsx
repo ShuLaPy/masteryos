@@ -75,11 +75,16 @@ export default function ReviewClient({ cards, userId }: ReviewClientProps) {
     const duration = Math.round((Date.now() - startTime) / 1000);
 
     try {
-      await fetch("/api/review", {
+      const res = await fetch("/api/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ card_id: current.id, rating, duration_seconds: duration }),
       });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Review failed");
+      }
 
       const label = RATINGS.find((r) => r.value === rating)?.label.toLowerCase() as keyof typeof results;
       setResults((prev) => ({ ...prev, [label]: prev[label] + 1 }));

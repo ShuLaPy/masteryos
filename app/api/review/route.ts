@@ -28,7 +28,16 @@ export async function POST(request: NextRequest) {
 
   // Run FSRS algorithm
   const fsrsCard = dbCardToFSRS(card);
-  const { updatedCard } = reviewCard(fsrsCard, rating as Rating);
+  const result = reviewCard(fsrsCard, rating as Rating);
+
+  if (!result || !result.updatedCard) {
+    return Response.json(
+      { error: "FSRS scheduling failed — card state may be corrupted" },
+      { status: 500 }
+    );
+  }
+
+  const { updatedCard } = result;
   const dbFields = fsrsCardToDB(updatedCard);
 
   // Update card + log review in parallel
