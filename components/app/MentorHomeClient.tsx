@@ -19,9 +19,21 @@ interface MentorContext {
   goalMinutes: number;
   dueCount: number;
   weakestConcept: { title: string; mastery: number } | null;
+  weakestConcepts: { title: string; mastery: number }[];
   lastDSASolvedAt: string | null;
   mentorMessage: string | null;
   completionPct: number;
+  dsaPatterns: Record<string, number>;
+  dsaProblemCount7d: number;
+  reviewStats: {
+    totalCards: number;
+    avgStability: number;
+    totalLapses: number;
+    totalReps: number;
+    matureCardCount: number;
+    successRate: number;
+  };
+  weeklyCardsReviewed: number;
 }
 
 interface ChatMessage {
@@ -296,32 +308,69 @@ export default function MentorHomeClient({ ctx }: { ctx: MentorContext }) {
             </div>
           </div>
 
+          {/* Review performance */}
+          <div className="glass rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Target className="w-3.5 h-3.5 text-primary" />
+              <span className="text-xs font-medium text-muted-foreground">Retention</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <p className={`text-xl font-bold ${ctx.reviewStats.successRate >= 85 ? "text-emerald-400" : ctx.reviewStats.successRate >= 70 ? "text-amber-400" : "text-red-400"}`}>
+                {ctx.reviewStats.successRate}%
+              </p>
+              <span className="text-xs text-muted-foreground">success rate</span>
+            </div>
+            <div className="flex gap-3 mt-2 text-[10px] text-muted-foreground">
+              <span>{ctx.weeklyCardsReviewed} reviewed this week</span>
+              <span>·</span>
+              <span>{ctx.reviewStats.matureCardCount} mature</span>
+            </div>
+          </div>
+
           {ctx.weakestConcept && (
             <div className="glass rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Zap className="w-3.5 h-3.5 text-amber-400" />
                 <span className="text-xs font-medium text-muted-foreground">Needs attention</span>
               </div>
-              <p className="text-sm font-medium text-foreground truncate">{ctx.weakestConcept.title}</p>
-              <div className="mt-2 h-1.5 rounded-full bg-secondary">
-                <div
-                  className="h-full rounded-full bg-amber-400/70"
-                  style={{ width: `${ctx.weakestConcept.mastery}%` }}
-                />
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-1">{ctx.weakestConcept.mastery}% mastery</p>
+              {ctx.weakestConcepts.slice(0, 3).map((concept) => (
+                <div key={concept.title} className="mb-2 last:mb-0">
+                  <p className="text-sm font-medium text-foreground truncate">{concept.title}</p>
+                  <div className="mt-1 h-1.5 rounded-full bg-secondary">
+                    <div
+                      className="h-full rounded-full bg-amber-400/70"
+                      style={{ width: `${concept.mastery}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{concept.mastery}% mastery</p>
+                </div>
+              ))}
             </div>
           )}
 
           {daysSinceDSA !== null && (
-            <div className={`glass rounded-xl p-4 flex items-center gap-3 ${daysSinceDSA > 2 ? "border-orange-500/30" : ""}`}>
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${daysSinceDSA > 2 ? "bg-orange-500/15" : "bg-emerald-500/15"}`}>
-                <Code2 className={`w-4 h-4 ${daysSinceDSA > 2 ? "text-orange-400" : "text-emerald-400"}`} />
+            <div className={`glass rounded-xl p-4 ${daysSinceDSA > 2 ? "border-orange-500/30" : ""}`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${daysSinceDSA > 2 ? "bg-orange-500/15" : "bg-emerald-500/15"}`}>
+                  <Code2 className={`w-4 h-4 ${daysSinceDSA > 2 ? "text-orange-400" : "text-emerald-400"}`} />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-foreground">{daysSinceDSA}d</p>
+                  <p className="text-xs text-muted-foreground">since last DSA</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xl font-bold text-foreground">{daysSinceDSA}d</p>
-                <p className="text-xs text-muted-foreground">since last DSA</p>
-              </div>
+              {ctx.dsaProblemCount7d > 0 && (
+                <div className="mt-2 pt-2 border-t border-border/40">
+                  <p className="text-[10px] text-muted-foreground mb-1">{ctx.dsaProblemCount7d} problems this week</p>
+                  <div className="flex flex-wrap gap-1">
+                    {Object.entries(ctx.dsaPatterns).slice(0, 4).map(([pattern, count]) => (
+                      <span key={pattern} className="text-[9px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
+                        {pattern} ×{count}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

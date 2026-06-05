@@ -14,8 +14,10 @@ export default async function MentorHomePage() {
 
   if (!user) redirect("/login");
 
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
   // Fetch all context for the mentor in parallel
-  const [profileRes, dueRes, weakAIML, weakDSA, planRes] = await Promise.all([
+  const [profileRes, dueRes, weakAIML, dsaRes, planRes, reviewStatsRes, weeklyActivityRes] = await Promise.all([
     supabase
       .from("users")
       .select("display_name, streak_count, daily_goal_minutes")
@@ -26,26 +28,79 @@ export default async function MentorHomePage() {
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id)
       .lte("due", new Date().toISOString()),
+    // Fetch top 3 weakest concepts instead of just 1
     supabase
       .from("aiml_concepts")
       .select("title, mastery_score")
       .eq("user_id", user.id)
       .order("mastery_score", { ascending: true })
-      .limit(1)
-      .single(),
+      .limit(3),
+    // Fetch recent DSA problems with patterns for gap analysis
     supabase
       .from("dsa_problems")
-      .select("patterns, solved_at")
+      .select("patterns, solved_at, difficulty")
       .eq("user_id", user.id)
-      .order("solved_at", { ascending: false })
-      .limit(10),
+      .gte("solved_at", sevenDaysAgo)
+      .order("solved_at", { ascending: false }),
     supabase
       .from("daily_plans")
       .select("mentor_message, generated_plan, completion_pct")
       .eq("user_id", user.id)
       .eq("plan_date", new Date().toISOString().split("T")[0])
       .single(),
+    // Review performance: avg stability, total lapses, recent card states
+    supabase
+      .from("srs_cards")
+      .select("stability, lapses, reps, state, last_review")
+      .eq("user_id", user.id)
+      .not("last_review", "is", null),
+    // Weekly activity: count of cards reviewed in last 7 days
+    supabase
+      .from("srs_cards")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("last_review", sevenDaysAgo),
   ]);
+
+  // Build DSA pattern frequency map
+  const patternCounts: Record<string, number> = {};
+  let lastDSASolvedAt: string | null = null;
+  if (dsaRes.data && dsaRes.data.length > 0) {
+    lastDSASolvedAt = dsaRes.data[0].solved_at;
+    for (const problem of dsaRes.data) {
+      const patterns = problem.patterns as string[] | null;
+      if (patterns) {
+        for (const p of patterns) {
+          patternCounts[p] = (patternCounts[p] || 0) + 1;
+        }
+      }
+    }
+  }
+
+  // Compute review performance stats
+  let avgStability = 0;
+  let totalLapses = 0;
+  let totalReps = 0;
+  let matureCardCount = 0;
+  const reviewedCards = reviewStatsRes.data ?? [];
+  if (reviewedCards.length > 0) {
+    let stabilitySum = 0;
+    for (const card of reviewedCards) {
+      stabilitySum += card.stability ?? 0;
+      totalLapses += card.lapses ?? 0;
+      totalReps += card.reps ?? 0;
+      if (card.state === "review" && (card.stability ?? 0) > 10) {
+        matureCardCount++;
+      }
+    }
+    avgStability = Math.round((stabilitySum / reviewedCards.length) * 10) / 10;
+  }
+
+  // Build weakest concepts array
+  const weakestConcepts = (weakAIML.data ?? []).map((c) => ({
+    title: c.title,
+    mastery: Math.round((c.mastery_score ?? 0) * 100),
+  }));
 
   const ctx = {
     userId: user.id,
@@ -53,15 +108,25 @@ export default async function MentorHomePage() {
     streakCount: profileRes.data?.streak_count ?? 0,
     goalMinutes: profileRes.data?.daily_goal_minutes ?? 60,
     dueCount: dueRes.count ?? 0,
-    weakestConcept: weakAIML.data
-      ? {
-          title: weakAIML.data.title,
-          mastery: Math.round((weakAIML.data.mastery_score ?? 0) * 100),
-        }
-      : null,
-    lastDSASolvedAt: weakDSA.data?.[0]?.solved_at ?? null,
+    // Keep backwards-compatible single weakest concept for UI
+    weakestConcept: weakestConcepts.length > 0 ? weakestConcepts[0] : null,
+    // New: full list for mentor prompt
+    weakestConcepts,
+    lastDSASolvedAt,
     mentorMessage: planRes.data?.mentor_message ?? null,
     completionPct: planRes.data?.completion_pct ?? 0,
+    // New enriched data
+    dsaPatterns: patternCounts,
+    dsaProblemCount7d: dsaRes.data?.length ?? 0,
+    reviewStats: {
+      totalCards: reviewedCards.length,
+      avgStability,
+      totalLapses,
+      totalReps,
+      matureCardCount,
+      successRate: totalReps > 0 ? Math.round(((totalReps - totalLapses) / totalReps) * 100) : 0,
+    },
+    weeklyCardsReviewed: weeklyActivityRes.count ?? 0,
   };
 
   return <MentorHomeClient ctx={ctx} />;

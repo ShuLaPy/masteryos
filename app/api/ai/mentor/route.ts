@@ -7,13 +7,72 @@ const MENTOR_SYSTEM = `You are the user's personal AI learning mentor for DSA an
 You have access to the user's real learning data provided in each message. Use it to give hyper-specific, actionable advice.
 
 Rules:
-- Be concise. Max 3-4 sentences for greeting, max 150 words for chat responses.
-- Be specific — reference actual concept names, actual numbers from their data.
-- If they've been avoiding something, call it out directly but encouragingly.
+- Be concise. Max 3-4 sentences for greeting, max 200 words for chat responses.
+- Be specific — reference actual concept names, pattern names, actual numbers from their data.
+- If they've been avoiding certain DSA patterns, call it out directly but encouragingly.
 - If streak is high, celebrate it briefly.
 - If due count is high, prioritize review urgently.
+- If success rate is dropping or lapses are high, address retention strategy.
+- If they have neglected certain patterns (like DP, greedy, graphs), suggest specific practice.
+- Reference their daily completion percentage when relevant.
 - Never be generic. No "keep up the great work" without specific data to back it.
-- Format with line breaks for readability, no markdown headers.`;
+- Format with line breaks for readability, no markdown headers.
+- When discussing trends, reference the 7-day data provided.`;
+
+/**
+ * Build a detailed context string from the enriched mentor context
+ */
+function buildContextString(ctx: Record<string, unknown>): string {
+  const daysSinceDSA = ctx.lastDSASolvedAt
+    ? Math.floor((Date.now() - new Date(ctx.lastDSASolvedAt as string).getTime()) / 86400000)
+    : null;
+
+  const weakestConceptsStr = (ctx.weakestConcepts as { title: string; mastery: number }[] | undefined)?.length
+    ? (ctx.weakestConcepts as { title: string; mastery: number }[])
+        .map((c) => `${c.title} (${c.mastery}%)`)
+        .join(", ")
+    : "none logged yet";
+
+  const patterns = ctx.dsaPatterns as Record<string, number> | undefined;
+  const patternStr = patterns && Object.keys(patterns).length > 0
+    ? Object.entries(patterns)
+        .sort((a, b) => b[1] - a[1])
+        .map(([p, count]) => `${p}: ${count}`)
+        .join(", ")
+    : "no problems logged this week";
+
+  const stats = ctx.reviewStats as {
+    totalCards: number;
+    avgStability: number;
+    totalLapses: number;
+    totalReps: number;
+    matureCardCount: number;
+    successRate: number;
+  } | undefined;
+
+  return `
+User context:
+- Name: ${ctx.displayName}
+- Streak: ${ctx.streakCount} days
+- Daily goal: ${ctx.goalMinutes} minutes/day
+- Today's completion: ${ctx.completionPct ?? 0}%
+
+SRS Review Stats:
+- Cards due today: ${ctx.dueCount}
+- Total cards in system: ${stats?.totalCards ?? 0}
+- Mature cards (stability >10): ${stats?.matureCardCount ?? 0}
+- Average stability: ${stats?.avgStability ?? 0} days
+- Success rate: ${stats?.successRate ?? 0}% (${stats?.totalReps ?? 0} reps, ${stats?.totalLapses ?? 0} lapses)
+- Cards reviewed this week: ${ctx.weeklyCardsReviewed ?? 0}
+
+AIML Concepts — Weakest areas:
+- ${weakestConceptsStr}
+
+DSA (last 7 days):
+- Problems solved: ${ctx.dsaProblemCount7d ?? 0}
+- Days since last solve: ${daysSinceDSA !== null ? daysSinceDSA : "never"}
+- Pattern distribution: ${patternStr}`.trim();
+}
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -24,15 +83,10 @@ export async function POST(request: NextRequest) {
   const { type, ctx, messages } = body;
 
   if (type === "greeting") {
-    const userMsg = `Generate a concise morning greeting for this learner.
-Name: ${ctx.displayName}
-Streak: ${ctx.streakCount} days
-Due cards today: ${ctx.dueCount}
-Weakest concept: ${ctx.weakestConcept ? `${ctx.weakestConcept.title} (${ctx.weakestConcept.mastery}% mastery)` : "none logged yet"}
-Days since last DSA problem: ${ctx.lastDSASolvedAt ? Math.floor((Date.now() - new Date(ctx.lastDSASolvedAt).getTime()) / 86400000) : "never"}
-Goal: ${ctx.goalMinutes} minutes/day`;
+    const contextStr = buildContextString(ctx);
+    const userMsg = `Generate a concise greeting for this learner based on their current data. Be specific and actionable.\n\n${contextStr}`;
 
-    const { data } = await generateText(MENTOR_SYSTEM, userMsg, 200);
+    const { data } = await generateText(MENTOR_SYSTEM, userMsg, 250);
 
     // Cache in daily_plans table
     if (data) {
@@ -48,16 +102,8 @@ Goal: ${ctx.goalMinutes} minutes/day`;
   }
 
   if (type === "chat") {
-    const contextMsg = `
-User context:
-- Name: ${ctx.displayName}
-- Streak: ${ctx.streakCount} days
-- Due cards: ${ctx.dueCount}
-- Weakest AIML concept: ${ctx.weakestConcept ? `${ctx.weakestConcept.title} (${ctx.weakestConcept.mastery}% mastery)` : "none yet"}
-- Days since last DSA: ${ctx.lastDSASolvedAt ? Math.floor((Date.now() - new Date(ctx.lastDSASolvedAt).getTime()) / 86400000) : "never solved"}`;
-
-    // Prepend context to system, then stream
-    const enrichedSystem = MENTOR_SYSTEM + "\n\n" + contextMsg;
+    const contextStr = buildContextString(ctx);
+    const enrichedSystem = MENTOR_SYSTEM + "\n\n" + contextStr;
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
