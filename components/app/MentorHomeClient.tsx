@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { InsightCards } from "@/components/app/InsightCards";
+import CommitmentWidget from "@/components/app/CommitmentWidget";
 
 interface MentorContext {
   userId: string;
@@ -35,6 +36,11 @@ interface MentorContext {
     successRate: number;
   };
   weeklyCardsReviewed: number;
+  commitment: {
+    weeklyGoalMinutes: number;
+    actualMinutes: number;
+    compliancePct: number;
+  };
 }
 
 interface ChatMessage {
@@ -375,6 +381,12 @@ export default function MentorHomeClient({ ctx }: { ctx: MentorContext }) {
             </div>
           )}
         </div>
+
+        <CommitmentWidget
+          weeklyGoalMinutes={ctx.commitment.weeklyGoalMinutes}
+          actualMinutes={ctx.commitment.actualMinutes}
+          compliancePct={ctx.commitment.compliancePct}
+        />
 
         {/* Quick Actions */}
         <div>

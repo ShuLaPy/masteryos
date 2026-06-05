@@ -705,10 +705,10 @@ Read CLAUDE.md. Build the Accountability Engine:
    Step 1: Week stats (auto-populated from DB)
    Step 2: Rate each AIML concept covered this week (slider 1-5)
    Step 3: Identify 1 weak area (dropdown from their concepts)
-   Step 4: Read AI-generated weekly synthesis (stream from Claude)
+   Step 4: Read AI-generated weekly synthesis (stream from OpenAI)
    Step 5: Set next week's daily goal
 4. Supabase Edge Function /functions/generate-weekly-synthesis:
-   Gathers week's data → sends to Claude → saves to weekly_syntheses table
+   Gathers week's data → sends to OpenAI → saves to weekly_syntheses table
 5. Commitment contract widget on dashboard: shows week goal vs actual
 6. Email notifications via Resend: weekly synthesis delivery on Sunday morning
 ```

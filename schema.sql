@@ -11,7 +11,10 @@ create table public.users (
   email text not null,
   display_name text,
   streak_count integer default 0,
+  streak_last_date date,
+  grace_days_remaining integer default 1,
   daily_goal_minutes integer default 60,
+  settings jsonb default '{}',
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -115,7 +118,34 @@ alter table public.dsa_problems enable row level security;
 create policy "Users can manage own problems" on public.dsa_problems for all using (auth.uid() = user_id);
 
 -----------------------------------------
--- 6. Daily Plans (AI Mentor Cache)
+-- 6. Study Sessions
+-----------------------------------------
+create table public.study_sessions (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.users on delete cascade not null,
+  started_at timestamp with time zone not null default timezone('utc'::text, now()),
+  ended_at timestamp with time zone,
+  session_type text not null check (
+    session_type in ('srs_review', 'dsa_practice', 'aiml_study', 'feynman', 'mixed')
+  ),
+  planned_minutes integer,
+  actual_minutes integer,
+  cards_reviewed integer default 0,
+  problems_logged integer default 0,
+  energy_level integer check (energy_level is null or (energy_level between 1 and 5)),
+  mood_end integer check (mood_end is null or (mood_end between 1 and 5)),
+  notes text,
+  topics_covered text[],
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.study_sessions enable row level security;
+create policy "Users can manage own sessions" on public.study_sessions for all using (auth.uid() = user_id);
+
+create index study_sessions_user_started_idx on public.study_sessions (user_id, started_at desc);
+
+-----------------------------------------
+-- 7. Daily Plans (AI Mentor Cache)
 -----------------------------------------
 create table public.daily_plans (
   id uuid default uuid_generate_v4() primary key,
@@ -134,7 +164,7 @@ alter table public.daily_plans enable row level security;
 create policy "Users can manage own plans" on public.daily_plans for all using (auth.uid() = user_id);
 
 -----------------------------------------
--- 7. Supabase Auth Trigger
+-- 8. Supabase Auth Trigger
 -----------------------------------------
 -- Automatically create a user profile when someone signs up
 create or replace function public.handle_new_user()

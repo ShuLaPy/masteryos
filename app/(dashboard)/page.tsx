@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import MentorHomeClient from "@/components/app/MentorHomeClient";
+import { getWeekStartISO, parseSettings } from "@/lib/accountability";
 
 export const metadata = {
   title: "AI Mentor — MasteryOS",
@@ -16,11 +17,13 @@ export default async function MentorHomePage() {
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
+  const weekStart = getWeekStartISO();
+
   // Fetch all context for the mentor in parallel
-  const [profileRes, dueRes, weakAIML, dsaRes, planRes, reviewStatsRes, weeklyActivityRes] = await Promise.all([
+  const [profileRes, dueRes, weakAIML, dsaRes, planRes, reviewStatsRes, weeklyActivityRes, weekReviewsRes, weekSessionsRes] = await Promise.all([
     supabase
       .from("users")
-      .select("display_name, streak_count, daily_goal_minutes")
+      .select("display_name, streak_count, daily_goal_minutes, settings")
       .eq("id", user.id)
       .single(),
     supabase
@@ -60,6 +63,16 @@ export default async function MentorHomePage() {
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id)
       .gte("last_review", sevenDaysAgo),
+    supabase
+      .from("reviews")
+      .select("duration_seconds")
+      .eq("user_id", user.id)
+      .gte("created_at", weekStart),
+    supabase
+      .from("study_sessions")
+      .select("actual_minutes")
+      .eq("user_id", user.id)
+      .gte("started_at", weekStart),
   ]);
 
   // Build DSA pattern frequency map
@@ -102,6 +115,22 @@ export default async function MentorHomePage() {
     mastery: Math.round((c.mastery_score ?? 0) * 100),
   }));
 
+  const settings = parseSettings(profileRes.data?.settings);
+  const dailyGoal = profileRes.data?.daily_goal_minutes ?? 60;
+  const weeklyGoalMinutes = settings.weekly_goal_minutes ?? dailyGoal * 7;
+  const reviewMinutes = Math.round(
+    (weekReviewsRes.data ?? []).reduce((s, r) => s + (r.duration_seconds ?? 0), 0) / 60
+  );
+  const sessionMinutes = (weekSessionsRes.data ?? []).reduce(
+    (s, sess) => s + (sess.actual_minutes ?? 0),
+    0
+  );
+  const commitmentActualMinutes = reviewMinutes + sessionMinutes;
+  const commitmentCompliancePct =
+    weeklyGoalMinutes > 0
+      ? Math.min(100, Math.round((commitmentActualMinutes / weeklyGoalMinutes) * 100))
+      : 0;
+
   const ctx = {
     userId: user.id,
     displayName: profileRes.data?.display_name ?? "Learner",
@@ -127,6 +156,11 @@ export default async function MentorHomePage() {
       successRate: totalReps > 0 ? Math.round(((totalReps - totalLapses) / totalReps) * 100) : 0,
     },
     weeklyCardsReviewed: weeklyActivityRes.count ?? 0,
+    commitment: {
+      weeklyGoalMinutes,
+      actualMinutes: commitmentActualMinutes,
+      compliancePct: commitmentCompliancePct,
+    },
   };
 
   return <MentorHomeClient ctx={ctx} />;

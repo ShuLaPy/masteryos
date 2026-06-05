@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { dbCardToFSRS, fsrsCardToDB, reviewCard, Rating } from "@/lib/fsrs";
+import { updateStreak } from "@/lib/streak";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -75,6 +76,8 @@ export async function POST(request: NextRequest) {
   if (updateResult.error) {
     return Response.json({ error: updateResult.error.message }, { status: 500 });
   }
+
+  await updateStreak(supabase, user.id);
 
   return Response.json({
     success: true,
