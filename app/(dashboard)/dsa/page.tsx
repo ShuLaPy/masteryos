@@ -8,13 +8,7 @@ import { Progress } from "@/components/ui/progress";
 
 export const metadata = { title: "DSA Track — MasteryOS" };
 
-export const DSA_PATTERNS = [
-  "Arrays", "Sliding Window", "Two Pointers", "Fast & Slow Pointers", "Prefix Sum",
-  "Binary Search", "Sorting", "Recursion", "Backtracking", "Dynamic Programming (1D)",
-  "Dynamic Programming (2D)", "Greedy", "Divide & Conquer", "Linked Lists", "Stacks",
-  "Queues", "Trees (BFS)", "Trees (DFS)", "Binary Search Trees", "Heaps / Priority Queues",
-  "Tries", "Graphs (BFS)", "Graphs (DFS)", "Topological Sort", "Union Find"
-];
+import { DSA_PATTERNS } from "@/lib/constants";
 
 function difficultyColor(diff: string) {
   if (diff === "easy") return "text-emerald-400 bg-emerald-500/15 border-emerald-500/25";

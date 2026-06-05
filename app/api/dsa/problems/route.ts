@@ -53,15 +53,15 @@ export async function POST(request: NextRequest) {
         const prompt = `Create exactly 2 spaced repetition flashcards for the DSA pattern "${pattern}".
 Card 1: Ask what the fundamental structure/template of the pattern is.
 Card 2: Ask how to recognize when a problem requires this pattern.
-Respond ONLY with a JSON array of objects, with "front" and "back" string fields.`;
+Respond ONLY with a JSON object containing a single key "cards" which is an array of objects, with "front" and "back" string fields.`;
 
-        const { data: cards } = await generateJSON<{ front: string; back: string }[]>(
+        const { data: result } = await generateJSON<{ cards: { front: string; back: string }[] }>(
           "You are an expert algorithms tutor.",
           prompt
         );
 
-        if (cards && Array.isArray(cards)) {
-          const dbCards = cards.map((c) => ({
+        if (result?.cards && Array.isArray(result.cards)) {
+          const dbCards = result.cards.map((c) => ({
             user_id: user.id,
             card_type: "pattern",
             front: c.front,

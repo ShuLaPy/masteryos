@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { generateJSON } from "@/lib/openai";
-import { DSA_PATTERNS } from "@/app/(dashboard)/dsa/page";
+import { DSA_PATTERNS } from "@/lib/constants";
 
 export async function POST(request: NextRequest) {
   const { title, url } = await request.json();

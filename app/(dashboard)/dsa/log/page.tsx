@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { DSA_PATTERNS } from "../page";
+import { DSA_PATTERNS } from "@/lib/constants";
 
 export default function LogDSAPage() {
   const router = useRouter();

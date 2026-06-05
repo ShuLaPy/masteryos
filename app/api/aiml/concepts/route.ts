@@ -41,15 +41,15 @@ The cards should cover key definitions, intuitions, and common misconceptions.
 Concept: ${title}
 Notes: ${notes}
 
-Respond ONLY with a JSON array of objects, where each object has "front" (the question/prompt) and "back" (the answer). Keep the answers concise and clear.`;
+Respond ONLY with a JSON object containing a single key "cards", which is an array of objects. Each object must have "front" (the question/prompt) and "back" (the answer). Keep the answers concise and clear.`;
 
-    const result = await generateJSON<{ front: string; back: string }[]>(
+    const result = await generateJSON<{ cards: { front: string; back: string }[] }>(
       "You generate SRS flashcards in JSON format.",
       prompt
     );
 
-    if (result.data && Array.isArray(result.data)) {
-      const dbCards = result.data.map((c) => {
+    if (result.data?.cards && Array.isArray(result.data.cards)) {
+      const dbCards = result.data.cards.map((c) => {
         const defaultFsrs = newCard();
         return {
           user_id: user.id,
