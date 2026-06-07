@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, ExternalLink, Clock, Star, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AIExplainSection } from "@/components/app/AIExplainSection";
 
 export const metadata = { title: "Problem Detail — MasteryOS" };
 
@@ -147,6 +148,11 @@ export default async function DSAProblemDetailPage({
               No approach notes were logged for this problem.
             </p>
           )}
+        </div>
+
+        {/* AI Explain */}
+        <div className="pt-1">
+          <AIExplainSection problemId={problem.id} />
         </div>
       </div>
 

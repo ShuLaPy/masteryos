@@ -1,15 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Sparkles, Loader2, Code2 } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2, Code2, CheckCircle2, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { DSA_PATTERNS } from "@/lib/constants";
+import { DSA_PATTERNS, normalizePatterns } from "@/lib/constants";
+
+type VideoRow = { video_id: string; channel: string; embed_url: string };
+type BankTitle = { slug: string; title: string };
+type PrefillData = {
+  slug: string;
+  title: string;
+  difficulty: string;
+  patterns: string[];
+  leetcode_url: string;
+  company_tags: string[];
+  video_solutions: VideoRow[];
+};
+type PrefillResponse = { data: { prefill: PrefillData | null } | null; error: string | null };
+type BankTitlesResponse = { data: BankTitle[] | null; error: string | null };
 
 export default function LogDSAPage() {
   const router = useRouter();
@@ -24,6 +39,113 @@ export default function LogDSAPage() {
     time_taken_minutes: "",
     confidence: "3",
   });
+
+  // Stored separately — not submitted, used by future display features (Phase D).
+  const [prefillMeta, setPrefillMeta] = useState<{
+    company_tags: string[];
+    video_solutions: VideoRow[];
+  } | null>(null);
+  const [prefillBanner, setPrefillBanner] = useState(false);
+
+  // Debounced URL drives the TanStack query.
+  const [debouncedUrl, setDebouncedUrl] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedUrl(form.url), 600);
+    return () => clearTimeout(t);
+  }, [form.url]);
+
+  // Bank title dropdown state.
+  const [titleQuery, setTitleQuery] = useState("");
+  const [showDrop, setShowDrop] = useState(false);
+  const dropRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click.
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (dropRef.current && !dropRef.current.contains(e.target as Node)) {
+        setShowDrop(false);
+      }
+    }
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, []);
+
+  // TanStack Query: prefill from URL (fires after debounce).
+  const { data: urlPrefillRes, isFetching: urlFetching } = useQuery<PrefillResponse>({
+    queryKey: ["prefill-url", debouncedUrl],
+    queryFn: async () => {
+      const res = await fetch(`/api/dsa/prefill?url=${encodeURIComponent(debouncedUrl)}`);
+      return res.json();
+    },
+    enabled: !!debouncedUrl && debouncedUrl.includes("leetcode.com"),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // TanStack Query: all bank titles for the searchable dropdown.
+  const { data: bankTitlesRes } = useQuery<BankTitlesResponse>({
+    queryKey: ["bank-titles"],
+    queryFn: async () => {
+      const res = await fetch("/api/dsa/bank-titles");
+      return res.json();
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // Auto-apply URL-based prefill when the query resolves.
+  useEffect(() => {
+    const prefill = urlPrefillRes?.data?.prefill;
+    if (!prefill) return;
+    const normalizedPatterns = normalizePatterns(prefill.patterns ?? []);
+    setForm((f) => ({
+      ...f,
+      title: prefill.title ?? f.title,
+      difficulty: prefill.difficulty ?? f.difficulty,
+      patterns: normalizedPatterns.length ? normalizedPatterns : f.patterns,
+    }));
+    setPrefillMeta({
+      company_tags: prefill.company_tags ?? [],
+      video_solutions: prefill.video_solutions ?? [],
+    });
+    setPrefillBanner(true);
+  }, [urlPrefillRes]);
+
+  // Apply prefill from a slug (dropdown selection).
+  function applyPrefill(prefill: PrefillData) {
+    const normalizedPatterns = normalizePatterns(prefill.patterns ?? []);
+    setForm((f) => ({
+      ...f,
+      title: prefill.title ?? f.title,
+      difficulty: prefill.difficulty ?? f.difficulty,
+      patterns: normalizedPatterns.length ? normalizedPatterns : f.patterns,
+      url: prefill.leetcode_url || f.url,
+    }));
+    setPrefillMeta({
+      company_tags: prefill.company_tags ?? [],
+      video_solutions: prefill.video_solutions ?? [],
+    });
+    setPrefillBanner(true);
+    setShowDrop(false);
+    setTitleQuery("");
+  }
+
+  async function selectFromBank(slug: string) {
+    setShowDrop(false);
+    try {
+      const res = await fetch(`/api/dsa/prefill?slug=${encodeURIComponent(slug)}`);
+      const json: PrefillResponse = await res.json();
+      if (json.data?.prefill) applyPrefill(json.data.prefill);
+    } catch {
+      toast.error("Failed to load problem details");
+    }
+  }
+
+  const bankTitles = bankTitlesRes?.data ?? [];
+  const filteredBank =
+    titleQuery.length >= 1
+      ? bankTitles
+          .filter((b) => b.title.toLowerCase().includes(titleQuery.toLowerCase()))
+          .slice(0, 8)
+      : [];
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -67,7 +189,6 @@ export default function LogDSAPage() {
       });
       const data = await res.json();
       if (data.patterns && Array.isArray(data.patterns)) {
-        // Merge without duplicates
         const newPatterns = Array.from(new Set([...form.patterns, ...data.patterns]));
         setForm((f) => ({ ...f, patterns: newPatterns }));
         toast.success("Patterns suggested!");
@@ -103,6 +224,52 @@ export default function LogDSAPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+
+        {/* Search problem bank — fills the form on selection */}
+        <div className="space-y-1.5" ref={dropRef}>
+          <Label className="text-xs text-muted-foreground">Quick-fill from problem bank</Label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Search by problem title…"
+              value={titleQuery}
+              onChange={(e) => { setTitleQuery(e.target.value); setShowDrop(true); }}
+              onFocus={() => { if (titleQuery) setShowDrop(true); }}
+              className="bg-secondary/50 pl-8"
+            />
+            {showDrop && filteredBank.length > 0 && (
+              <div className="absolute z-50 top-full mt-1 w-full rounded-xl border border-border bg-card shadow-xl overflow-hidden">
+                {filteredBank.map((b) => (
+                  <button
+                    key={b.slug}
+                    type="button"
+                    className="w-full px-3 py-2 text-sm text-left text-foreground hover:bg-secondary/60 transition-colors border-b border-border/40 last:border-0"
+                    onMouseDown={(e) => { e.preventDefault(); selectFromBank(b.slug); }}
+                  >
+                    {b.title}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Prefill banner */}
+        {prefillBanner && (
+          <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-violet-500/10 border border-violet-500/20">
+            <div className="flex items-center gap-2 text-xs text-violet-300">
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              Pre-filled from your problem bank
+              {prefillMeta && prefillMeta.company_tags.length > 0 && (
+                <span className="text-violet-400/60">· {prefillMeta.company_tags.slice(0, 3).join(", ")}</span>
+              )}
+            </div>
+            <button type="button" onClick={() => setPrefillBanner(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="title">Problem Title *</Label>
@@ -117,13 +284,21 @@ export default function LogDSAPage() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="url">URL (optional)</Label>
-            <Input
-              id="url"
-              placeholder="https://leetcode.com/problems/..."
-              value={form.url}
-              onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
-              className="bg-secondary/50"
-            />
+            <div className="relative">
+              <Input
+                id="url"
+                placeholder="https://leetcode.com/problems/…"
+                value={form.url}
+                onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+                className="bg-secondary/50 pr-8"
+              />
+              {urlFetching && (
+                <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Paste a LeetCode URL to auto-fill title, difficulty, and patterns.
+            </p>
           </div>
         </div>
 

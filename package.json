@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed:problems": "tsx --env-file=.env.local scripts/seed-problem-bank.ts"
+    "seed:problems": "tsx --env-file=.env.local scripts/seed-problem-bank.ts",
+    "enrich:problems": "tsx --env-file=.env.local scripts/enrich-problem-bank.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
