@@ -174,8 +174,18 @@ async function PrepBody({
       unstudied.push({ id: concept.id, title: concept.title });
       continue;
     }
+    // New cards (stability=0) have never been reviewed — treat as retrievability 0,
+    // not 1.0 (which getRetrievability returns for scheduling purposes).
+    const allNew = conceptCards.every((c) => c.stability === 0);
+    if (allNew) {
+      unstudied.push({ id: concept.id, title: concept.title });
+      continue;
+    }
     const minRetrievability = Math.min(
-      ...conceptCards.map((c) => getRetrievability(dbCardToFSRS(c)))
+      ...conceptCards.map((c) => {
+        const fsrsCard = dbCardToFSRS(c);
+        return fsrsCard.stability === 0 ? 0 : getRetrievability(fsrsCard);
+      })
     );
     if (minRetrievability < weaknessThreshold) {
       weak.push({ id: concept.id, title: concept.title, retrievability: minRetrievability });
