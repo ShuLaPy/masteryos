@@ -131,15 +131,15 @@ async function PrepBody({
 }) {
   const prereqIds = lecture.prerequisite_concept_ids ?? [];
 
-  // Load prerequisite concepts (titles) + their cards in parallel.
+  // Load prerequisite concepts (titles + card_status) + their cards in parallel.
   const [conceptsRes, cardsRes] = await Promise.all([
     prereqIds.length > 0
       ? supabase
           .from("aiml_concepts")
-          .select("id, title")
+          .select("id, title, card_status")
           .eq("user_id", userId)
           .in("id", prereqIds)
-      : Promise.resolve({ data: [] as { id: string; title: string }[] }),
+      : Promise.resolve({ data: [] as { id: string; title: string; card_status: string | null }[] }),
     prereqIds.length > 0
       ? supabase
           .from("srs_cards")
@@ -152,7 +152,7 @@ async function PrepBody({
       : Promise.resolve({ data: [] as Card[] }),
   ]);
 
-  const concepts = (conceptsRes.data ?? []) as { id: string; title: string }[];
+  const concepts = (conceptsRes.data ?? []) as { id: string; title: string; card_status: string | null }[];
   const cards = (cardsRes.data ?? []) as Card[];
 
   // Index cards by their source concept.
@@ -164,7 +164,7 @@ async function PrepBody({
   }
 
   // Classify each prereq: weak / unstudied / strong.
-  type Weak = { id: string; title: string; retrievability: number };
+  type Weak = { id: string; title: string; retrievability: number; cardStatus: string | null };
   const weak: Weak[] = [];
   const unstudied: { id: string; title: string }[] = [];
 
@@ -188,7 +188,7 @@ async function PrepBody({
       })
     );
     if (minRetrievability < weaknessThreshold) {
-      weak.push({ id: concept.id, title: concept.title, retrievability: minRetrievability });
+      weak.push({ id: concept.id, title: concept.title, retrievability: minRetrievability, cardStatus: concept.card_status });
     }
     // else: strong → not surfaced individually
   }
@@ -241,6 +241,8 @@ async function PrepBody({
                     title={c.title}
                     status="weak"
                     retrievability={c.retrievability}
+                    cardStatus={c.cardStatus as "learned" | "seeded" | "none" | null}
+                    conceptId={c.id}
                   />
                 ))}
               </div>
@@ -257,7 +259,7 @@ async function PrepBody({
               </h3>
               <div className="space-y-2">
                 {unstudied.map((c) => (
-                  <PreClassPrepCard key={c.id} title={c.title} status="unstudied" />
+                  <PreClassPrepCard key={c.id} title={c.title} status="unstudied" conceptId={c.id} />
                 ))}
               </div>
             </section>

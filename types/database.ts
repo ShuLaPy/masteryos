@@ -36,6 +36,8 @@ export type Database = {
     Tables: {
       aiml_concepts: {
         Row: {
+          card_status: string | null
+          card_status_updated_at: string | null
           centrality: number | null
           concept_type: string | null
           created_at: string
@@ -50,6 +52,8 @@ export type Database = {
           week_number: number | null
         }
         Insert: {
+          card_status?: string | null
+          card_status_updated_at?: string | null
           centrality?: number | null
           concept_type?: string | null
           created_at?: string
@@ -64,6 +68,8 @@ export type Database = {
           week_number?: number | null
         }
         Update: {
+          card_status?: string | null
+          card_status_updated_at?: string | null
           centrality?: number | null
           concept_type?: string | null
           created_at?: string

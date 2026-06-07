@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getConceptsNeedingSeeds, fireAndForgetSeedConcepts } from "@/lib/concept-seeder";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -173,6 +174,12 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     .single();
 
   if (error) return Response.json({ data: null, error: error.message }, { status: 500 });
+
+  if (prereqIds !== undefined && prereqIds.length > 0) {
+    const conceptsToSeed = await getConceptsNeedingSeeds(supabase, prereqIds);
+    fireAndForgetSeedConcepts(user.id, conceptsToSeed);
+  }
+
   return Response.json({ data, error: null });
 }
 
