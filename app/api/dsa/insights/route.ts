@@ -1,8 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import Link from "next/link";
-import { Plus, Code2, Sparkles, Brain } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { complete } from "@/lib/ai-router";
 import {
   targetDistribution,
@@ -14,13 +10,6 @@ import {
 import { zpdDifficulty } from "@/lib/dsa-planner";
 import { weaknessFromMastery } from "@/lib/pattern-rating";
 import { CANONICAL_PATTERNS, type CanonicalPattern } from "@/lib/pattern-map";
-import PatternMasteryHeatmap from "@/components/app/dsa/PatternMasteryHeatmap";
-import DsaCoachCard from "@/components/app/dsa/DsaCoachCard";
-import SuggestedProblemList from "@/components/app/dsa/SuggestedProblemList";
-import TrajectorySparkline from "@/components/app/dsa/TrajectorySparkline";
-import WeeklySummaryStrip from "@/components/app/dsa/WeeklySummaryStrip";
-
-export const metadata = { title: "DSA Track — MasteryOS" };
 
 const DEFAULT_RATING = 1500;
 const DEFAULT_RD = 350;
@@ -34,17 +23,17 @@ function isoWeekMonday(dateStr: string): string {
   return monday.toISOString().slice(0, 10);
 }
 
-export default async function DSATrackPage() {
+export async function GET() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) return new Response("Unauthorized", { status: 401 });
 
   const cutoff14d = new Date(Date.now() - 14 * 86_400_000).toISOString();
   const cutoff12w = new Date(Date.now() - 84 * 86_400_000).toISOString();
 
-  const [masteryRes, attemptsCoachRes, attemptsTrajectoryRes, bankRes, solvedRes, countRes, allAttemptsRes] =
+  const [masteryRes, attemptsCoachRes, attemptsTrajectoryRes, bankRes, solvedRes, allAttemptsRes] =
     await Promise.all([
       supabase
         .from("pattern_mastery")
@@ -64,22 +53,29 @@ export default async function DSATrackPage() {
       supabase
         .from("problem_bank")
         .select("id, slug, title, difficulty, patterns, leetcode_url"),
-      supabase
-        .from("dsa_problems")
-        .select("id, url")
-        .eq("user_id", user.id),
-      supabase
-        .from("srs_cards")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("source_type", "dsa_recognition"),
+      supabase.from("dsa_problems").select("url").eq("user_id", user.id),
       supabase
         .from("problem_attempts")
         .select("patterns, difficulty, outcome_score, time_seconds, pattern_identified, created_at")
         .eq("user_id", user.id),
     ]);
 
-  // ── Mastery map ────────────────────────────────────────────────────────────
+  const fetchErr =
+    masteryRes.error ??
+    attemptsCoachRes.error ??
+    attemptsTrajectoryRes.error ??
+    bankRes.error ??
+    solvedRes.error ??
+    allAttemptsRes.error;
+
+  if (fetchErr) {
+    return Response.json(
+      { data: null, error: `Failed to load data: ${fetchErr.message}` },
+      { status: 500 },
+    );
+  }
+
+  // ── 1. Per-pattern mastery ─────────────────────────────────────────────────
   const masteryByPattern = new Map<CanonicalPattern, MasterySnapshot>(
     (masteryRes.data ?? []).map((r) => [
       r.pattern as CanonicalPattern,
@@ -102,7 +98,7 @@ export default async function DSATrackPage() {
     };
   });
 
-  // ── Trajectory ─────────────────────────────────────────────────────────────
+  // ── 2. Trajectory (weekly avg outcome score, last 12 weeks) ───────────────
   const weekBuckets = new Map<string, { sum: number; count: number }>();
   for (const a of attemptsTrajectoryRes.data ?? []) {
     const week = isoWeekMonday(a.created_at);
@@ -117,7 +113,7 @@ export default async function DSATrackPage() {
     }))
     .sort((a, b) => a.week.localeCompare(b.week));
 
-  // ── Coach drift ────────────────────────────────────────────────────────────
+  // ── 3. Coach drift ─────────────────────────────────────────────────────────
   const target = targetDistribution(masteryByPattern);
   const actual = actualDistribution(attemptsCoachRes.data ?? [], 14, Date.now());
   const { neglected, overPracticed } = computeDrift(target, actual);
@@ -127,7 +123,7 @@ export default async function DSATrackPage() {
     balance_score: Math.round(balanceScore(target, actual) * 100) / 100,
   };
 
-  // ── ZPD suggestions ────────────────────────────────────────────────────────
+  // ── 4. ZPD suggestions — one bank problem per neglected/weak pattern ───────
   const solvedUrls = new Set<string>(
     (solvedRes.data ?? [])
       .map((r) => r.url)
@@ -151,23 +147,27 @@ export default async function DSATrackPage() {
           })
           .slice(0, 3);
 
-  const suggestions: Array<{
+  interface Suggestion {
     slug: string;
     title: string;
     difficulty: string;
     url: string;
     patterns: string[];
     target_pattern: string;
-  }> = [];
+  }
+
+  const suggestions: Suggestion[] = [];
   const usedSlugs = new Set<string>();
-  for (const tp of topPatterns) {
-    const zpd = zpdDifficulty(masteryByPattern.get(tp)?.rating ?? DEFAULT_RATING);
+  for (const targetPattern of topPatterns) {
+    const zpd = zpdDifficulty(
+      masteryByPattern.get(targetPattern)?.rating ?? DEFAULT_RATING,
+    );
     const match = (bankRes.data ?? []).find(
       (b) =>
         !usedSlugs.has(b.slug) &&
         !(b.leetcode_url && solvedUrls.has(b.leetcode_url)) &&
         b.difficulty === zpd &&
-        ((b.patterns as string[]) ?? []).includes(tp),
+        ((b.patterns as string[]) ?? []).includes(targetPattern),
     );
     if (match) {
       usedSlugs.add(match.slug);
@@ -177,54 +177,56 @@ export default async function DSATrackPage() {
         difficulty: match.difficulty,
         url: match.leetcode_url,
         patterns: (match.patterns as string[]) ?? [],
-        target_pattern: tp,
+        target_pattern: targetPattern,
       });
     }
   }
 
-  // ── AI brief (server-side, narrative only) ─────────────────────────────────
+  // ── 5. AI brief — narrative only, LLM never computes numbers ─────────────
   const trajectoryDir =
     trajectory.length >= 2
       ? trajectory[trajectory.length - 1].avg_score >
         trajectory[trajectory.length - 2].avg_score
         ? "improving"
         : "declining"
-      : "stable";
+      : "stable (not enough data)";
 
   const topWeak = patterns
     .filter((p) => p.attempts > 0)
     .sort((a, b) => b.weakness - a.weakness)
     .slice(0, 3)
-    .map((p) => `${p.pattern}(${Math.round(p.rating)})`);
+    .map((p) => `${p.pattern}(rating=${Math.round(p.rating)})`);
 
   const briefContext = [
-    `Balance: ${coach.balance_score}. Neglected: ${coach.neglected.join(", ") || "none"}.`,
-    `Over-practiced: ${coach.over_practiced.join(", ") || "none"}.`,
-    `Weakest: ${topWeak.join(", ") || "none attempted"}.`,
-    `Trend: ${trajectoryDir}. Patterns attempted: ${patterns.filter((p) => p.attempts > 0).length}/25.`,
+    `Balance score: ${coach.balance_score} (1.0 = perfect).`,
+    `Neglected: ${coach.neglected.length > 0 ? coach.neglected.join(", ") : "none"}.`,
+    `Over-practiced: ${coach.over_practiced.length > 0 ? coach.over_practiced.join(", ") : "none"}.`,
+    `Weakest practiced patterns: ${topWeak.length > 0 ? topWeak.join(", ") : "none yet"}.`,
+    `Recent 2-week trend: ${trajectoryDir}.`,
+    `Patterns attempted so far: ${patterns.filter((p) => p.attempts > 0).length} of 25.`,
   ].join(" ");
 
   const { data: briefData } = await complete({
     task: "coaching_synthesis",
     systemPrompt:
-      "You are a concise DSA coach. Write a 3-sentence daily brief based only on the stats given. " +
-      "Sentence 1: portfolio balance. " +
-      "Sentence 2: which patterns to focus on today and why. " +
-      "Sentence 3: motivation referencing their trend. " +
-      "Under 70 words. Plain text, no markdown.",
+      "You are a concise DSA coach. Write a 3-sentence daily brief for a learner using only the stats given. " +
+      "Sentence 1: portfolio balance assessment. " +
+      "Sentence 2: which 1-2 specific patterns to focus on today and why. " +
+      "Sentence 3: short motivational nudge referencing their trajectory. " +
+      "Under 70 words total. Plain text, no markdown.",
     messages: [
       {
         role: "user",
-        content: `Stats: ${briefContext}\n\nWrite the brief.`,
+        content: `Stats:\n${briefContext}\n\nWrite the 3-sentence brief.`,
       },
     ],
   });
 
   const brief =
     briefData?.content ??
-    "Keep grinding — consistent, balanced practice across all 25 patterns builds lasting mastery.";
+    "Keep grinding — consistent practice across all 25 patterns builds lasting mastery.";
 
-  // ── Weekly summary metrics (§14) ──────────────────────────────────────────
+  // ── 6. Weekly summary metrics (§14) ───────────────────────────────────────
   const MASTERY_RATING_THRESHOLD = 1650;
   const MASTERY_RD_THRESHOLD = 200;
 
@@ -243,7 +245,7 @@ export default async function DSATrackPage() {
     if (a.outcome_score >= 0.5 && a.difficulty in DIFFICULTY_ORDER) {
       const diff = a.difficulty as DifficultyKey;
       const rank = DIFFICULTY_ORDER[diff];
-      for (const pat of (a.patterns as string[])) {
+      for (const pat of a.patterns as string[]) {
         const cur = ceilingByPattern.get(pat);
         if (rank > (cur ? DIFFICULTY_ORDER[cur] : 0)) ceilingByPattern.set(pat, diff);
       }
@@ -278,104 +280,8 @@ export default async function DSATrackPage() {
     recognition_accuracy_pct: recognitionAccuracyPct,
   };
 
-  // ── Page stats ─────────────────────────────────────────────────────────────
-  const totalProblems = solvedRes.data?.length ?? 0;
-  const totalCards = countRes.count ?? 0;
-  const exploredPatterns = patterns.filter((p) => p.attempts > 0).length;
-
-  return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Code2 className="w-6 h-6 text-emerald-400" /> DSA Track
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Pattern mastery · Glicko-2 ratings · ZPD suggestions
-          </p>
-        </div>
-        <Link href="/dsa/log">
-          <Button className="bg-emerald-500 hover:bg-emerald-600 text-white">
-            <Plus className="w-4 h-4 mr-2" /> Log Problem
-          </Button>
-        </Link>
-      </div>
-
-      {/* Stats row */}
-      <div className="grid grid-cols-4 gap-3">
-        <div className="glass rounded-xl p-4">
-          <p className="text-2xl font-bold text-foreground">{totalProblems}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Problems solved</p>
-        </div>
-        <div className="glass rounded-xl p-4">
-          <p className="text-2xl font-bold text-foreground">{totalCards}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">SRS cards</p>
-        </div>
-        <div className="glass rounded-xl p-4">
-          <p className="text-2xl font-bold text-emerald-400">
-            {exploredPatterns} / 25
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">Patterns explored</p>
-        </div>
-        <div className="glass rounded-xl p-4">
-          <p
-            className={`text-2xl font-bold ${
-              coach.balance_score >= 0.85
-                ? "text-emerald-400"
-                : coach.balance_score >= 0.65
-                  ? "text-amber-400"
-                  : "text-red-400"
-            }`}
-          >
-            {coach.balance_score.toFixed(2)}
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">Balance score</p>
-        </div>
-      </div>
-
-      {/* AI Brief */}
-      <div className="glass rounded-xl p-4 border-primary/20 border flex gap-3">
-        <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-          <Sparkles className="w-4 h-4 text-primary" />
-        </div>
-        <div>
-          <p className="text-xs font-medium text-primary mb-1 uppercase tracking-wider">
-            Coach · Daily Brief
-          </p>
-          <p className="text-sm text-foreground/90 leading-relaxed">{brief}</p>
-        </div>
-      </div>
-
-      {/* Weekly summary strip */}
-      <WeeklySummaryStrip summary={weeklySummary} />
-
-      {/* Heatmap + Coach side-by-side */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 glass rounded-xl p-4">
-          <PatternMasteryHeatmap patterns={patterns} />
-        </div>
-        <div className="lg:col-span-1">
-          <DsaCoachCard coach={coach} />
-        </div>
-      </div>
-
-      {/* Trajectory sparkline */}
-      <TrajectorySparkline trajectory={trajectory} />
-
-      {/* Suggestions */}
-      <SuggestedProblemList suggestions={suggestions} />
-
-      {/* Explore all problems link */}
-      <div className="flex items-center justify-center pt-2">
-        <Link
-          href="/dsa/log"
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
-        >
-          <Brain className="w-3.5 h-3.5" />
-          Browse all logged problems
-        </Link>
-      </div>
-    </div>
-  );
+  return Response.json({
+    data: { patterns, trajectory, coach, suggestions, brief, weekly_summary: weeklySummary },
+    error: null,
+  });
 }

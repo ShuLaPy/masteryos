@@ -1,0 +1,301 @@
+slug,title,difficulty,topics,pattern,leetcode_url
+move-zeroes,Move Zeroes,easy,array|two-pointers,Arrays,https://leetcode.com/problems/move-zeroes
+majority-element,Majority Element,easy,array|hash-table|divide-and-conquer|sorting|counting,Arrays,https://leetcode.com/problems/majority-element
+remove-duplicates-from-sorted-array,Remove Duplicates from Sorted Array,easy,array|two-pointers,Arrays,https://leetcode.com/problems/remove-duplicates-from-sorted-array
+best-time-to-buy-and-sell-stock,Best Time to Buy and Sell Stock,easy,array|dynamic-programming,Arrays,https://leetcode.com/problems/best-time-to-buy-and-sell-stock
+rotate-array,Rotate Array,medium,array|math|two-pointers,Arrays,https://leetcode.com/problems/rotate-array
+product-of-array-except-self,Product of Array Except Self,medium,array|prefix-sum,Arrays,https://leetcode.com/problems/product-of-array-except-self
+best-time-to-buy-and-sell-stock-ii,Best Time to Buy and Sell Stock II,medium,array|dynamic-programming|greedy,Arrays,https://leetcode.com/problems/best-time-to-buy-and-sell-stock-ii
+number-of-zero-filled-subarrays,Number of Zero-Filled Subarrays,medium,array|math,Arrays,https://leetcode.com/problems/number-of-zero-filled-subarrays
+increasing-triplet-subsequence,Increasing Triplet Subsequence,medium,array|greedy,Arrays,https://leetcode.com/problems/increasing-triplet-subsequence
+first-missing-positive,First Missing Positive,hard,array|hash-table,Arrays,https://leetcode.com/problems/first-missing-positive
+is-subsequence,Is Subsequence,easy,two-pointers|string|dynamic-programming,Strings,https://leetcode.com/problems/is-subsequence
+valid-palindrome,Valid Palindrome,easy,two-pointers|string,Strings,https://leetcode.com/problems/valid-palindrome
+longest-common-prefix,Longest Common Prefix,easy,array|string|trie,Strings,https://leetcode.com/problems/longest-common-prefix
+zigzag-conversion,Zigzag Conversion,medium,string,Strings,https://leetcode.com/problems/zigzag-conversion
+reverse-words-in-a-string,Reverse Words in a String,medium,two-pointers|string,Strings,https://leetcode.com/problems/reverse-words-in-a-string
+guess-the-word,guess-the-word,medium,array|math|string|interactive|game-theory,Strings,https://leetcode.com/problems/guess-the-word
+single-number,Single Number,easy,array|bit-manipulation,Bit Manipulation,https://leetcode.com/problems/single-number
+number-of-1-bits,Number of 1 Bits,easy,divide-and-conquer|bit-manipulation,Bit Manipulation,https://leetcode.com/problems/number-of-1-bits
+counting-bits,Counting Bits,easy,dynamic-programming|bit-manipulation,Bit Manipulation,https://leetcode.com/problems/counting-bits
+reverse-bits,Reverse Bits,easy,divide-and-conquer|bit-manipulation,Bit Manipulation,https://leetcode.com/problems/reverse-bits
+bitwise-and-of-numbers-range,Bitwise AND of Numbers Range,medium,bit-manipulation,Bit Manipulation,https://leetcode.com/problems/bitwise-and-of-numbers-range
+single-number-iii,Single Number III,medium,array|bit-manipulation,Bit Manipulation,https://leetcode.com/problems/single-number-iii
+sum-of-two-integers,Sum of Two Integers,medium,math|bit-manipulation,Bit Manipulation,https://leetcode.com/problems/sum-of-two-integers
+design-hashmap,Design HashMap,easy,array|hash-table|linked-list|design|hash-function,Hash Tables,https://leetcode.com/problems/design-hashmap
+maximum-number-of-balloons,Maximum Number of Balloons,easy,hash-table|string|counting,Hash Tables,https://leetcode.com/problems/maximum-number-of-balloons
+number-of-good-pairs,Number of Good Pairs,easy,array|hash-table|math|counting,Hash Tables,https://leetcode.com/problems/number-of-good-pairs
+isomorphic-strings,Isomorphic Strings,easy,hash-table|string,Hash Tables,https://leetcode.com/problems/isomorphic-strings
+ransom-note,Ransom Note,easy,hash-table|string|counting,Hash Tables,https://leetcode.com/problems/ransom-note
+contains-duplicate-ii,Contains Duplicate II,easy,array|hash-table|sliding-window,Hash Tables,https://leetcode.com/problems/contains-duplicate-ii
+group-anagrams,Group Anagrams,medium,array|hash-table|string|sorting,Hash Tables,https://leetcode.com/problems/group-anagrams
+encode-and-decode-tinyurl,Encode and Decode TinyURL,medium,hash-table|string|design|hash-function,Hash Tables,https://leetcode.com/problems/encode-and-decode-tinyurl
+reorganize-string,Reorganize String,medium,hash-table|string|greedy|sorting|heap-priority-queue|counting,Hash Tables,https://leetcode.com/problems/reorganize-string
+longest-consecutive-sequence,Longest Consecutive Sequence,medium,array|hash-table|union-find,Hash Tables,https://leetcode.com/problems/longest-consecutive-sequence
+split-array-into-consecutive-subsequences,Split Array into Consecutive Subsequences,medium,array|hash-table|greedy|heap-priority-queue,Hash Tables,https://leetcode.com/problems/split-array-into-consecutive-subsequences
+number-of-matching-subsequences,Number of Matching Subsequences,medium,array|hash-table|string|binary-search|dynamic-programming|trie|sorting,Hash Tables,https://leetcode.com/problems/number-of-matching-subsequences
+number-of-good-ways-to-split-a-string,Number of Good Ways to Split a String,medium,hash-table|string|dynamic-programming|bit-manipulation|prefix-sum,Hash Tables,https://leetcode.com/problems/number-of-good-ways-to-split-a-string
+merge-sorted-array,Merge Sorted Array,easy,array|two-pointers|sorting,Two Pointers,https://leetcode.com/problems/merge-sorted-array
+two-sum-ii-input-array-is-sorted,Two Sum II - Input Array Is Sorted,medium,array|two-pointers|binary-search,Two Pointers,https://leetcode.com/problems/two-sum-ii-input-array-is-sorted
+container-with-most-water,Container With Most Water,medium,array|two-pointers|greedy,Two Pointers,https://leetcode.com/problems/container-with-most-water
+3Sum,3Sum,medium,array|two-pointers|sorting,Two Pointers,https://leetcode.com/problems/3Sum
+trapping-rain-water,Trapping Rain Water,hard,array|two-pointers|dynamic-programming|stack|monotonic-stack,Two Pointers,https://leetcode.com/problems/trapping-rain-water
+range-sum-query-immutable,Range Sum Query - Immutable,easy,array|design|prefix-sum,Prefix Sum,https://leetcode.com/problems/range-sum-query-immutable
+subarray-sum-equals-k,Subarray Sum Equals K,medium,array|hash-table|prefix-sum,Prefix Sum,https://leetcode.com/problems/subarray-sum-equals-k
+subarray-sums-divisible-by-k,Subarray Sums Divisible by K,medium,array|hash-table|prefix-sum,Prefix Sum,https://leetcode.com/problems/subarray-sums-divisible-by-k
+continuous-subarray-sum,Continuous Subarray Sum,medium,array|hash-table|math|prefix-sum,Prefix Sum,https://leetcode.com/problems/continuous-subarray-sum
+contiguous-array,Contiguous Array,medium,array|hash-table|prefix-sum,Prefix Sum,https://leetcode.com/problems/contiguous-array
+maximum-average-subarray-i,Maximum Average Subarray I,easy,array|sliding-window,Sliding Window - Fixed Size,https://leetcode.com/problems/maximum-average-subarray-i
+find-all-anagrams-in-a-string,Find All Anagrams in a String,medium,hash-table|string|sliding-window,Sliding Window - Fixed Size,https://leetcode.com/problems/find-all-anagrams-in-a-string
+permutation-in-string,Permutation in String,medium,hash-table|two-pointers|string|sliding-window,Sliding Window - Fixed Size,https://leetcode.com/problems/permutation-in-string
+maximum-sum-of-distinct-subarrays-with-length-k,Maximum Sum of Distinct Subarrays With Length K,medium,array|hash-table|sliding-window,Sliding Window - Fixed Size,https://leetcode.com/problems/maximum-sum-of-distinct-subarrays-with-length-k
+substring-with-concatenation-of-all-words,Substring with Concatenation of All Words,hard,hash-table|string|sliding-window,Sliding Window - Fixed Size,https://leetcode.com/problems/substring-with-concatenation-of-all-words
+longest-substring-without-repeating-characters,Longest Substring Without Repeating Characters,medium,hash-table|string|sliding-window,Sliding Window - Dynamic Size,https://leetcode.com/problems/longest-substring-without-repeating-characters
+longest-repeating-character-replacement,Longest Repeating Character Replacement,medium,hash-table|string|sliding-window,Sliding Window - Dynamic Size,https://leetcode.com/problems/longest-repeating-character-replacement
+minimum-size-subarray-sum,Minimum Size Subarray Sum,medium,array|binary-search|sliding-window|prefix-sum,Sliding Window - Dynamic Size,https://leetcode.com/problems/minimum-size-subarray-sum
+max-consecutive-ones-iii,Max Consecutive Ones III,medium,array|binary-search|sliding-window|prefix-sum,Sliding Window - Dynamic Size,https://leetcode.com/problems/max-consecutive-ones-iii
+minimum-window-substring,Minimum Window Substring,hard,hash-table|string|sliding-window,Sliding Window - Dynamic Size,https://leetcode.com/problems/minimum-window-substring
+maximum-subarray,Maximum Subarray,medium,array|divide-and-conquer|dynamic-programming,Kadane's Algorithm,https://leetcode.com/problems/maximum-subarray
+maximum-sum-circular-subarray,Maximum Sum Circular Subarray,medium,array|divide-and-conquer|dynamic-programming|queue|monotonic-queue,Kadane's Algorithm,https://leetcode.com/problems/maximum-sum-circular-subarray
+maximum-product-subarray,Maximum Product Subarray,medium,array|dynamic-programming,Kadane's Algorithm,https://leetcode.com/problems/maximum-product-subarray
+best-sightseeing-pair,Best Sightseeing Pair,medium,array|dynamic-programming,Kadane's Algorithm,https://leetcode.com/problems/best-sightseeing-pair
+spiral-matrix,Spiral Matrix,medium,array|matrix|simulation,Matrix (2D Array),https://leetcode.com/problems/spiral-matrix
+rotate-image,Rotate Image,medium,array|math|matrix,Matrix (2D Array),https://leetcode.com/problems/rotate-image
+set-matrix-zeroes,Set Matrix Zeroes,medium,array|hash-table|matrix,Matrix (2D Array),https://leetcode.com/problems/set-matrix-zeroes
+valid-sudoku,Valid Sudoku,medium,array|hash-table|matrix,Matrix (2D Array),https://leetcode.com/problems/valid-sudoku
+game-of-life,Game of Life,medium,array|matrix|simulation,Matrix (2D Array),https://leetcode.com/problems/game-of-life
+intersection-of-two-linked-lists,Intersection of Two Linked Lists,easy,hash-table|linked-list|two-pointers,Linked List,https://leetcode.com/problems/intersection-of-two-linked-lists
+design-linked-list,Design Linked List,medium,linked-list|design,Linked List,https://leetcode.com/problems/design-linked-list
+remove-nth-node-from-end-of-list,Remove Nth Node From End of List,medium,linked-list|two-pointers,Linked List,https://leetcode.com/problems/remove-nth-node-from-end-of-list
+remove-duplicates-from-sorted-list-ii,Remove Duplicates from Sorted List II,medium,linked-list|two-pointers,Linked List,https://leetcode.com/problems/remove-duplicates-from-sorted-list-ii
+swap-nodes-in-pairs,Swap Nodes in Pairs,medium,linked-list|recursion,Linked List,https://leetcode.com/problems/swap-nodes-in-pairs
+copy-list-with-random-pointer,Copy List with Random Pointer,medium,hash-table|linked-list,Linked List,https://leetcode.com/problems/copy-list-with-random-pointer
+partition-list,Partition List,medium,linked-list|two-pointers,Linked List,https://leetcode.com/problems/partition-list
+rotate-list,Rotate List,medium,linked-list|two-pointers,Linked List,https://leetcode.com/problems/rotate-list
+add-two-numbers,Add Two Numbers,medium,linked-list|math|recursion,Linked List,https://leetcode.com/problems/add-two-numbers
+flatten-a-multilevel-doubly-linked-list,Flatten a Multilevel Doubly Linked List,medium,linked-list|depth-first-search|doubly-linked-list,Linked List,https://leetcode.com/problems/flatten-a-multilevel-doubly-linked-list
+palindrome-linked-list,Palindrome Linked List,easy,linked-list|two-pointers|stack|recursion,LinkedList In-place Reversal,https://leetcode.com/problems/palindrome-linked-list
+reverse-linked-list,Reverse Linked List,easy,linked-list|recursion,LinkedList In-place Reversal,https://leetcode.com/problems/reverse-linked-list
+reverse-linked-list-ii,Reverse Linked List II,medium,linked-list,LinkedList In-place Reversal,https://leetcode.com/problems/reverse-linked-list-ii
+reverse-nodes-in-k-group,Reverse Nodes in k-Group,hard,linked-list|recursion,LinkedList In-place Reversal,https://leetcode.com/problems/reverse-nodes-in-k-group
+middle-of-the-linked-list,Middle of the Linked List,easy,linked-list|two-pointers,Fast and Slow Pointers,https://leetcode.com/problems/middle-of-the-linked-list
+happy-number,Happy Number,easy,hash-table|math|two-pointers,Fast and Slow Pointers,https://leetcode.com/problems/happy-number
+linked-list-cycle-ii,Linked List Cycle II,medium,hash-table|linked-list|two-pointers,Fast and Slow Pointers,https://leetcode.com/problems/linked-list-cycle-ii
+valid-parentheses,Valid Parentheses,easy,string|stack,Stacks,https://leetcode.com/problems/valid-parentheses
+remove-all-adjacent-duplicates-in-string,Remove All Adjacent Duplicates In String,easy,string|stack,Stacks,https://leetcode.com/problems/remove-all-adjacent-duplicates-in-string
+min-stack,Min Stack,medium,stack|design,Stacks,https://leetcode.com/problems/min-stack
+remove-duplicate-letters,Remove Duplicate Letters,medium,string|stack|greedy|monotonic-stack,Stacks,https://leetcode.com/problems/remove-duplicate-letters
+removing-stars-from-a-string,Removing Stars From a String,medium,string|stack|simulation,Stacks,https://leetcode.com/problems/removing-stars-from-a-string
+evaluate-reverse-polish-notation,Evaluate Reverse Polish Notation,medium,array|math|stack,Stacks,https://leetcode.com/problems/evaluate-reverse-polish-notation
+basic-calculator-ii,Basic Calculator II,medium,math|string|stack,Stacks,https://leetcode.com/problems/basic-calculator-ii
+longest-valid-parentheses,Longest Valid Parentheses,hard,string|dynamic-programming|stack,Stacks,https://leetcode.com/problems/longest-valid-parentheses
+next-greater-element-i,Next Greater Element I,easy,array|hash-table|stack|monotonic-stack,Monotonic Stack,https://leetcode.com/problems/next-greater-element-i
+daily-temperatures,Daily Temperatures,medium,array|stack|monotonic-stack,Monotonic Stack,https://leetcode.com/problems/daily-temperatures
+online-stock-span,Online Stock Span,medium,stack|design|monotonic-stack|data-stream,Monotonic Stack,https://leetcode.com/problems/online-stock-span
+132-pattern,132 Pattern,medium,array|binary-search|stack|monotonic-stack|ordered-set,Monotonic Stack,https://leetcode.com/problems/132-pattern
+number-of-visible-people-in-a-queue,Number of Visible People in a Queue,hard,array|stack|monotonic-stack,Monotonic Stack,https://leetcode.com/problems/number-of-visible-people-in-a-queue
+largest-rectangle-in-histogram,Largest Rectangle in Histogram,hard,array|stack|monotonic-stack,Monotonic Stack,https://leetcode.com/problems/largest-rectangle-in-histogram
+number-of-recent-calls,Number of Recent Calls,easy,design|queue|data-stream,Queues,https://leetcode.com/problems/number-of-recent-calls
+time-needed-to-buy-tickets,Time Needed to Buy Tickets,easy,array|queue|simulation,Queues,https://leetcode.com/problems/time-needed-to-buy-tickets
+reveal-cards-in-increasing-order,Reveal Cards In Increasing Order,medium,array|queue|sorting|simulation,Queues,https://leetcode.com/problems/reveal-cards-in-increasing-order
+jump-game-vi,Jump Game VI,medium,array|dynamic-programming|queue|heap-priority-queue|monotonic-queue,Monotonic Queue,https://leetcode.com/problems/jump-game-vi
+longest-continuous-subarray-with-absolute-diff-less-than-or-equal-to-limit,Longest Continuous Subarray With Absolute Diff Less Than or Equal to Limit,medium,array|queue|sliding-window|heap-priority-queue|ordered-set|monotonic-queue,Monotonic Queue,https://leetcode.com/problems/longest-continuous-subarray-with-absolute-diff-less-than-or-equal-to-limit
+sliding-window-maximum,Sliding Window Maximum,hard,array|queue|sliding-window|heap-priority-queue|monotonic-queue,Monotonic Queue,https://leetcode.com/problems/sliding-window-maximum
+max-value-of-equation,Max Value of Equation,hard,array|queue|sliding-window|heap-priority-queue|monotonic-queue,Monotonic Queue,https://leetcode.com/problems/max-value-of-equation
+sort-characters-by-frequency,Sort Characters By Frequency,medium,hash-table|string|sorting|heap-priority-queue|bucket-sort|counting,Bucket Sort,https://leetcode.com/problems/sort-characters-by-frequency
+top-k-frequent-words,Top K Frequent Words,medium,array|hash-table|string|trie|sorting|heap-priority-queue|bucket-sort|counting,Bucket Sort,https://leetcode.com/problems/top-k-frequent-words
+maximum-gap,Maximum Gap,medium,array|sorting|bucket-sort|radix-sort,Bucket Sort,https://leetcode.com/problems/maximum-gap
+merge-two-sorted-lists,Merge Two Sorted Lists,easy,linked-list|recursion,Recursion,https://leetcode.com/problems/merge-two-sorted-lists
+powx-n,"Pow(x, n)",medium,math|recursion,Recursion,https://leetcode.com/problems/powx-n
+decode-string,Decode String,medium,string|stack|recursion,Recursion,https://leetcode.com/problems/decode-string
+convert-sorted-list-to-binary-search-tree,Convert Sorted List to Binary Search Tree,medium,linked-list|divide-and-conquer|tree|binary-search-tree|binary-tree,Divide and Conquer,https://leetcode.com/problems/convert-sorted-list-to-binary-search-tree
+construct-quad-tree,Construct Quad Tree,medium,array|divide-and-conquer|tree|matrix,Divide and Conquer,https://leetcode.com/problems/construct-quad-tree
+maximum-binary-tree,Maximum Binary Tree,medium,array|divide-and-conquer|stack|tree|monotonic-stack|binary-tree,Divide and Conquer,https://leetcode.com/problems/maximum-binary-tree
+sort-list,Sort List,medium,linked-list|two-pointers|divide-and-conquer|sorting|merge-sort,Merge Sort,https://leetcode.com/problems/sort-list
+reverse-pairs,Reverse Pairs,hard,array|binary-search|divide-and-conquer|binary-indexed-tree|segment-tree|merge-sort|ordered-set,Merge Sort,https://leetcode.com/problems/reverse-pairs
+sort-colors,Sort Colors,medium,array|two-pointers|sorting,QuickSort / QuickSelect,https://leetcode.com/problems/sort-colors
+kth-largest-element-in-an-array,Kth Largest Element in an Array,medium,array|divide-and-conquer|sorting|heap-priority-queue|quickselect,QuickSort / QuickSelect,https://leetcode.com/problems/kth-largest-element-in-an-array
+search-insert-position,Search Insert Position,easy,array|binary-search,Binary Search,https://leetcode.com/problems/search-insert-position
+find-first-and-last-position-of-element-in-sorted-array,Find First and Last Position of Element in Sorted Array,medium,array|binary-search,Binary Search,https://leetcode.com/problems/find-first-and-last-position-of-element-in-sorted-array
+search-in-rotated-sorted-array,Search in Rotated Sorted Array,medium,array|binary-search,Binary Search,https://leetcode.com/problems/search-in-rotated-sorted-array
+find-peak-element,Find Peak Element,medium,array|binary-search,Binary Search,https://leetcode.com/problems/find-peak-element
+random-pick-with-weight,Random Pick with Weight,medium,array|math|binary-search|prefix-sum|randomized,Binary Search,https://leetcode.com/problems/random-pick-with-weight
+koko-eating-bananas,Koko Eating Bananas,medium,array|binary-search,Binary Search,https://leetcode.com/problems/koko-eating-bananas
+find-minimum-in-rotated-sorted-array,Find Minimum in Rotated Sorted Array,medium,array|binary-search,Binary Search,https://leetcode.com/problems/find-minimum-in-rotated-sorted-array
+search-a-2d-matrix,Search a 2D Matrix,medium,array|binary-search|matrix,Binary Search,https://leetcode.com/problems/search-a-2d-matrix
+find-in-mountain-array,Find in Mountain Array,hard,array|binary-search|interactive,Binary Search,https://leetcode.com/problems/find-in-mountain-array
+median-of-two-sorted-arrays,Median of Two Sorted Arrays,hard,array|binary-search|divide-and-conquer,Binary Search,https://leetcode.com/problems/median-of-two-sorted-arrays
+generate-parentheses,Generate Parentheses,medium,string|dynamic-programming|backtracking,Backtracking,https://leetcode.com/problems/generate-parentheses
+permutations,Permutations,medium,array|backtracking,Backtracking,https://leetcode.com/problems/permutations
+subsets,Subsets,medium,array|backtracking|bit-manipulation,Backtracking,https://leetcode.com/problems/subsets
+combination-sum,Combination Sum,medium,array|backtracking,Backtracking,https://leetcode.com/problems/combination-sum
+combination-sum-ii,Combination Sum II,medium,array|backtracking,Backtracking,https://leetcode.com/problems/combination-sum-ii
+letter-combinations-of-a-phone-number,Letter Combinations of a Phone Number,medium,hash-table|string|backtracking,Backtracking,https://leetcode.com/problems/letter-combinations-of-a-phone-number
+palindrome-partitioning,Palindrome Partitioning,medium,string|dynamic-programming|backtracking,Backtracking,https://leetcode.com/problems/palindrome-partitioning
+n-queens,N-Queens,hard,array|backtracking,Backtracking,https://leetcode.com/problems/n-queens
+binary-tree-level-order-traversal,Binary Tree Level Order Traversal,medium,tree|breadth-first-search|binary-tree,Tree Traversal - Level Order,https://leetcode.com/problems/binary-tree-level-order-traversal
+binary-tree-right-side-view,Binary Tree Right Side View,medium,tree|depth-first-search|breadth-first-search|binary-tree,Tree Traversal - Level Order,https://leetcode.com/problems/binary-tree-right-side-view
+binary-tree-zigzag-level-order-traversal,Binary Tree Zigzag Level Order Traversal,medium,tree|breadth-first-search|binary-tree,Tree Traversal - Level Order,https://leetcode.com/problems/binary-tree-zigzag-level-order-traversal
+populating-next-right-pointers-in-each-node-ii,Populating Next Right Pointers in Each Node II,medium,linked-list|tree|depth-first-search|breadth-first-search|binary-tree,Tree Traversal - Level Order,https://leetcode.com/problems/populating-next-right-pointers-in-each-node-ii
+maximum-width-of-binary-tree,Maximum Width of Binary Tree,medium,tree|depth-first-search|breadth-first-search|binary-tree,Tree Traversal - Level Order,https://leetcode.com/problems/maximum-width-of-binary-tree
+binary-tree-preorder-traversal,Binary Tree Preorder Traversal,easy,stack|tree|depth-first-search|binary-tree,Tree Traversal - Pre Order,https://leetcode.com/problems/binary-tree-preorder-traversal
+same-tree,Same Tree,easy,tree|depth-first-search|breadth-first-search|binary-tree,Tree Traversal - Pre Order,https://leetcode.com/problems/same-tree
+symmetric-tree,Symmetric Tree,easy,tree|depth-first-search|breadth-first-search|binary-tree,Tree Traversal - Pre Order,https://leetcode.com/problems/symmetric-tree
+binary-tree-paths,Binary Tree Paths,easy,string|backtracking|tree|depth-first-search|binary-tree,Tree Traversal - Pre Order,https://leetcode.com/problems/binary-tree-paths
+convert-sorted-array-to-binary-search-tree,Convert Sorted Array to Binary Search Tree,easy,array|divide-and-conquer|tree|binary-search-tree|binary-tree,Tree Traversal - Pre Order,https://leetcode.com/problems/convert-sorted-array-to-binary-search-tree
+count-complete-tree-nodes,Count Complete Tree Nodes,easy,binary-search|bit-manipulation|tree|binary-tree,Tree Traversal - Pre Order,https://leetcode.com/problems/count-complete-tree-nodes
+path-sum-iii,Path Sum III,medium,tree|depth-first-search|binary-tree,Tree Traversal - Pre Order,https://leetcode.com/problems/path-sum-iii
+maximum-difference-between-node-and-ancestor,Maximum Difference Between Node and Ancestor,medium,tree|depth-first-search|binary-tree,Tree Traversal - Pre Order,https://leetcode.com/problems/maximum-difference-between-node-and-ancestor
+construct-binary-tree-from-preorder-and-inorder-traversal,Construct Binary Tree from Preorder and Inorder Traversal,medium,array|hash-table|divide-and-conquer|tree|binary-tree,Tree Traversal - Pre Order,https://leetcode.com/problems/construct-binary-tree-from-preorder-and-inorder-traversal
+construct-binary-tree-from-inorder-and-postorder-traversal,Construct Binary Tree from Inorder and Postorder Traversal,medium,array|hash-table|divide-and-conquer|tree|binary-tree,Tree Traversal - Pre Order,https://leetcode.com/problems/construct-binary-tree-from-inorder-and-postorder-traversal
+serialize-and-deserialize-binary-tree,Serialize and Deserialize Binary Tree,hard,string|tree|depth-first-search|breadth-first-search|design|binary-tree,Tree Traversal - Pre Order,https://leetcode.com/problems/serialize-and-deserialize-binary-tree
+binary-tree-inorder-traversal,Binary Tree Inorder Traversal,easy,stack|tree|depth-first-search|binary-tree,Tree Traversal - In Order,https://leetcode.com/problems/binary-tree-inorder-traversal
+minimum-distance-between-bst-nodes,Minimum Distance Between BST Nodes,easy,tree|depth-first-search|breadth-first-search|binary-search-tree|binary-tree,Tree Traversal - In Order,https://leetcode.com/problems/minimum-distance-between-bst-nodes
+minimum-absolute-difference-in-bst,Minimum Absolute Difference in BST,easy,tree|depth-first-search|breadth-first-search|binary-search-tree|binary-tree,Tree Traversal - In Order,https://leetcode.com/problems/minimum-absolute-difference-in-bst
+validate-binary-search-tree,Validate Binary Search Tree,medium,tree|depth-first-search|binary-search-tree|binary-tree,Tree Traversal - In Order,https://leetcode.com/problems/validate-binary-search-tree
+kth-smallest-element-in-a-bst,Kth Smallest Element in a BST,medium,tree|depth-first-search|binary-search-tree|binary-tree,Tree Traversal - In Order,https://leetcode.com/problems/kth-smallest-element-in-a-bst
+binary-search-tree-iterator,Binary Search Tree Iterator,medium,stack|tree|design|binary-search-tree|binary-tree|iterator,Tree Traversal - In Order,https://leetcode.com/problems/binary-search-tree-iterator
+binary-tree-postorder-traversal,Binary Tree Postorder Traversal,easy,stack|tree|depth-first-search|binary-tree,Tree Traversal - Post-Order,https://leetcode.com/problems/binary-tree-postorder-traversal
+invert-binary-tree,Invert Binary Tree,easy,tree|depth-first-search|breadth-first-search|binary-tree,Tree Traversal - Post-Order,https://leetcode.com/problems/invert-binary-tree
+diameter-of-binary-tree,Diameter of Binary Tree,easy,tree|depth-first-search|binary-tree,Tree Traversal - Post-Order,https://leetcode.com/problems/diameter-of-binary-tree
+delete-nodes-and-return-forest,Delete Nodes And Return Forest,medium,array|hash-table|tree|depth-first-search|binary-tree,Tree Traversal - Post-Order,https://leetcode.com/problems/delete-nodes-and-return-forest
+lowest-common-ancestor-of-a-binary-tree,Lowest Common Ancestor of a Binary Tree,medium,tree|depth-first-search|binary-tree,Tree Traversal - Post-Order,https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-tree
+find-duplicate-subtrees,Find Duplicate Subtrees,medium,hash-table|tree|depth-first-search|binary-tree,Tree Traversal - Post-Order,https://leetcode.com/problems/find-duplicate-subtrees
+flatten-binary-tree-to-linked-list,Flatten Binary Tree to Linked List,medium,linked-list|stack|tree|depth-first-search|binary-tree,Tree Traversal - Post-Order,https://leetcode.com/problems/flatten-binary-tree-to-linked-list
+distribute-coins-in-binary-tree,Distribute Coins in Binary Tree,medium,tree|depth-first-search|binary-tree,Tree Traversal - Post-Order,https://leetcode.com/problems/distribute-coins-in-binary-tree
+binary-tree-maximum-path-sum,Binary Tree Maximum Path Sum,hard,dynamic-programming|tree|depth-first-search|binary-tree,Tree Traversal - Post-Order,https://leetcode.com/problems/binary-tree-maximum-path-sum
+trim-a-binary-search-tree,Trim a Binary Search Tree,medium,tree|depth-first-search|binary-search-tree|binary-tree,BST / Ordered Set,https://leetcode.com/problems/trim-a-binary-search-tree
+my-calendar-i,My Calendar I,medium,array|binary-search|design|segment-tree|ordered-set,BST / Ordered Set,https://leetcode.com/problems/my-calendar-i
+my-calendar-ii,My Calendar II,medium,array|binary-search|design|segment-tree|prefix-sum|ordered-set,BST / Ordered Set,https://leetcode.com/problems/my-calendar-ii
+stock-price-fluctuation,Stock Price Fluctuation,medium,hash-table|design|heap-priority-queue|data-stream|ordered-set,BST / Ordered Set,https://leetcode.com/problems/stock-price-fluctuation
+implement-trie-prefix-tree,Implement Trie (Prefix Tree),medium,hash-table|string|design|trie,Tries,https://leetcode.com/problems/implement-trie-prefix-tree
+design-add-and-search-words-data-structure,Design Add and Search Words Data Structure,medium,string|depth-first-search|design|trie,Tries,https://leetcode.com/problems/design-add-and-search-words-data-structure
+search-suggestions-system,Search Suggestions System,medium,array|string|binary-search|trie|sorting|heap-priority-queue,Tries,https://leetcode.com/problems/search-suggestions-system
+longest-word-in-dictionary,Longest Word in Dictionary,medium,array|hash-table|string|trie|sorting,Tries,https://leetcode.com/problems/longest-word-in-dictionary
+maximum-xor-of-two-numbers-in-an-array,Maximum XOR of Two Numbers in an Array,medium,array|hash-table|bit-manipulation|trie,Tries,https://leetcode.com/problems/maximum-xor-of-two-numbers-in-an-array
+word-search-ii,Word Search II,hard,array|string|backtracking|trie|matrix,Tries,https://leetcode.com/problems/word-search-ii
+furthest-building-you-can-reach,Furthest Building You Can Reach,medium,array|greedy|heap-priority-queue,Heaps,https://leetcode.com/problems/furthest-building-you-can-reach
+single-threaded-cpu,Single-Threaded CPU,medium,array|sorting|heap-priority-queue,Heaps,https://leetcode.com/problems/single-threaded-cpu
+process-tasks-using-servers,Process Tasks Using Servers,medium,array|heap-priority-queue,Heaps,https://leetcode.com/problems/process-tasks-using-servers
+find-median-from-data-stream,Find Median from Data Stream,hard,two-pointers|design|sorting|heap-priority-queue|data-stream,Two Heaps,https://leetcode.com/problems/find-median-from-data-stream
+ipo,IPO,hard,array|greedy|sorting|heap-priority-queue,Two Heaps,https://leetcode.com/problems/ipo
+sliding-window-median,Sliding Window Median,hard,array|hash-table|sliding-window|heap-priority-queue,Two Heaps,https://leetcode.com/problems/sliding-window-median
+kth-largest-element-in-a-stream,Kth Largest Element in a Stream,easy,tree|design|binary-search-tree|heap-priority-queue|binary-tree|data-stream,Top K Elements,https://leetcode.com/problems/kth-largest-element-in-a-stream
+top-k-frequent-elements,Top K Frequent Elements,medium,array|hash-table|divide-and-conquer|sorting|heap-priority-queue|bucket-sort|counting|quickselect,Top K Elements,https://leetcode.com/problems/top-k-frequent-elements
+k-closest-points-to-origin,K Closest Points to Origin,medium,array|math|divide-and-conquer|geometry|sorting|heap-priority-queue|quickselect,Top K Elements,https://leetcode.com/problems/k-closest-points-to-origin
+merge-intervals,Merge Intervals,medium,array|sorting,Intervals,https://leetcode.com/problems/merge-intervals
+insert-interval,Insert Interval,medium,array,Intervals,https://leetcode.com/problems/insert-interval
+minimum-number-of-arrows-to-burst-balloons,Minimum Number of Arrows to Burst Balloons,medium,array|greedy|sorting,Intervals,https://leetcode.com/problems/minimum-number-of-arrows-to-burst-balloons
+maximum-number-of-events-that-can-be-attended,Maximum Number of Events That Can Be Attended,medium,array|greedy|sorting|heap-priority-queue,Intervals,https://leetcode.com/problems/maximum-number-of-events-that-can-be-attended
+non-overlapping-intervals,Non-overlapping Intervals,medium,array|dynamic-programming|greedy|sorting,Intervals,https://leetcode.com/problems/non-overlapping-intervals
+find-k-pairs-with-smallest-sums,Find K Pairs with Smallest Sums,medium,array|heap-priority-queue,K-Way Merge,https://leetcode.com/problems/find-k-pairs-with-smallest-sums
+kth-smallest-element-in-a-sorted-matrix,Kth Smallest Element in a Sorted Matrix,medium,array|binary-search|sorting|heap-priority-queue|matrix,K-Way Merge,https://leetcode.com/problems/kth-smallest-element-in-a-sorted-matrix
+merge-k-sorted-lists,Merge k Sorted Lists,hard,linked-list|divide-and-conquer|heap-priority-queue|merge-sort,K-Way Merge,https://leetcode.com/problems/merge-k-sorted-lists
+smallest-range-covering-elements-from-k-lists,Smallest Range Covering Elements from K Lists,hard,array|hash-table|greedy|sliding-window|sorting|heap-priority-queue,K-Way Merge,https://leetcode.com/problems/smallest-range-covering-elements-from-k-lists
+design-browser-history,Design Browser History,medium,array|linked-list|stack|design|doubly-linked-list|data-stream,Data Structure Design,https://leetcode.com/problems/design-browser-history
+time-based-key-value-store,Time Based Key-Value Store,medium,hash-table|string|binary-search|design,Data Structure Design,https://leetcode.com/problems/time-based-key-value-store
+snapshot-array,Snapshot Array,medium,array|hash-table|binary-search|design,Data Structure Design,https://leetcode.com/problems/snapshot-array
+design-twitter,Design Twitter,medium,hash-table|linked-list|design|heap-priority-queue,Data Structure Design,https://leetcode.com/problems/design-twitter
+lru-cache,LRU Cache,medium,hash-table|linked-list|design|doubly-linked-list,Data Structure Design,https://leetcode.com/problems/lru-cache
+insert-delete-getrandom-o1,Insert Delete GetRandom O(1),medium,array|hash-table|math|design|randomized,Data Structure Design,https://leetcode.com/problems/insert-delete-getrandom-o1
+design-a-food-rating-system,Design a Food Rating System,medium,array|hash-table|string|design|heap-priority-queue|ordered-set,Data Structure Design,https://leetcode.com/problems/design-a-food-rating-system
+maximum-frequency-stack,Maximum Frequency Stack,hard,hash-table|stack|design|ordered-set,Data Structure Design,https://leetcode.com/problems/maximum-frequency-stack
+jump-game-ii,Jump Game II,medium,array|dynamic-programming|greedy,Greedy,https://leetcode.com/problems/jump-game-ii
+minimum-add-to-make-parentheses-valid,Minimum Add to Make Parentheses Valid,medium,string|stack|greedy,Greedy,https://leetcode.com/problems/minimum-add-to-make-parentheses-valid
+gas-station,Gas Station,medium,array|greedy,Greedy,https://leetcode.com/problems/gas-station
+task-scheduler,Task Scheduler,medium,array|hash-table|greedy|sorting|heap-priority-queue|counting,Greedy,https://leetcode.com/problems/task-scheduler
+minimum-cost-to-hire-k-workers,Minimum Cost to Hire K Workers,hard,array|greedy|sorting|heap-priority-queue,Greedy,https://leetcode.com/problems/minimum-cost-to-hire-k-workers
+candy,Candy,hard,array|greedy,Greedy,https://leetcode.com/problems/candy
+minimum-number-of-refueling-stops,Minimum Number of Refueling Stops,hard,array|dynamic-programming|greedy|heap-priority-queue,Greedy,https://leetcode.com/problems/minimum-number-of-refueling-stops
+number-of-islands,Number of Islands,medium,array|depth-first-search|breadth-first-search|union-find|matrix,Depth First Search (DFS),https://leetcode.com/problems/number-of-islands
+time-needed-to-inform-all-employees,Time Needed to Inform All Employees,medium,tree|depth-first-search|breadth-first-search,Depth First Search (DFS),https://leetcode.com/problems/time-needed-to-inform-all-employees
+all-paths-from-source-to-target,All Paths From Source to Target,medium,backtracking|depth-first-search|breadth-first-search|graph,Depth First Search (DFS),https://leetcode.com/problems/all-paths-from-source-to-target
+clone-graph,Clone Graph,medium,hash-table|depth-first-search|breadth-first-search|graph,Depth First Search (DFS),https://leetcode.com/problems/clone-graph
+is-graph-bipartite,Is Graph Bipartite?,medium,depth-first-search|breadth-first-search|union-find|graph,Depth First Search (DFS),https://leetcode.com/problems/is-graph-bipartite
+all-nodes-distance-k-in-binary-tree,All Nodes Distance K in Binary Tree,medium,hash-table|tree|depth-first-search|breadth-first-search|binary-tree,Depth First Search (DFS),https://leetcode.com/problems/all-nodes-distance-k-in-binary-tree
+employee-importance,Employee Importance,medium,array|hash-table|tree|depth-first-search|breadth-first-search,Depth First Search (DFS),https://leetcode.com/problems/employee-importance
+surrounded-regions,Surrounded Regions,medium,array|depth-first-search|breadth-first-search|union-find|matrix,Depth First Search (DFS),https://leetcode.com/problems/surrounded-regions
+pacific-atlantic-water-flow,Pacific Atlantic Water Flow,medium,array|depth-first-search|breadth-first-search|matrix,Depth First Search (DFS),https://leetcode.com/problems/pacific-atlantic-water-flow
+making-a-large-island,Making A Large Island,hard,array|depth-first-search|breadth-first-search|union-find|matrix,Depth First Search (DFS),https://leetcode.com/problems/making-a-large-island
+rotting-oranges,Rotting Oranges,medium,array|breadth-first-search|matrix,Breadth First Search (BFS),https://leetcode.com/problems/rotting-oranges
+01-matrix,01 Matrix,medium,array|dynamic-programming|breadth-first-search|matrix,Breadth First Search (BFS),https://leetcode.com/problems/01-matrix
+open-the-lock,Open the Lock,medium,array|hash-table|string|breadth-first-search,Breadth First Search (BFS),https://leetcode.com/problems/open-the-lock
+shortest-path-in-a-grid-with-obstacles-elimination,Shortest Path in a Grid with Obstacles Elimination,hard,array|breadth-first-search|matrix,Breadth First Search (BFS),https://leetcode.com/problems/shortest-path-in-a-grid-with-obstacles-elimination
+bus-routes,Bus Routes,hard,array|hash-table|breadth-first-search,Breadth First Search (BFS),https://leetcode.com/problems/bus-routes
+word-ladder,Word Ladder,hard,hash-table|string|breadth-first-search,Breadth First Search (BFS),https://leetcode.com/problems/word-ladder
+course-schedule-ii,Course Schedule II,medium,depth-first-search|breadth-first-search|graph|topological-sort,Topological Sort,https://leetcode.com/problems/course-schedule-ii
+find-eventual-safe-states,Find Eventual Safe States,medium,depth-first-search|breadth-first-search|graph|topological-sort,Topological Sort,https://leetcode.com/problems/find-eventual-safe-states
+minimum-height-trees,Minimum Height Trees,medium,depth-first-search|breadth-first-search|graph|topological-sort,Topological Sort,https://leetcode.com/problems/minimum-height-trees
+sort-items-by-groups-respecting-dependencies,Sort Items by Groups Respecting Dependencies,hard,depth-first-search|breadth-first-search|graph|topological-sort,Topological Sort,https://leetcode.com/problems/sort-items-by-groups-respecting-dependencies
+number-of-provinces,Number of Provinces,medium,depth-first-search|breadth-first-search|union-find|graph,Union Find,https://leetcode.com/problems/number-of-provinces
+redundant-connection,Redundant Connection,medium,depth-first-search|breadth-first-search|union-find|graph,Union Find,https://leetcode.com/problems/redundant-connection
+accounts-merge,Accounts Merge,medium,array|hash-table|string|depth-first-search|breadth-first-search|union-find|sorting,Union Find,https://leetcode.com/problems/accounts-merge
+minimize-malware-spread,Minimize Malware Spread,hard,array|hash-table|depth-first-search|breadth-first-search|union-find|graph,Union Find,https://leetcode.com/problems/minimize-malware-spread
+min-cost-to-connect-all-points,Min Cost to Connect All Points,medium,array|union-find|graph|minimum-spanning-tree,Minimum Spanning Tree,https://leetcode.com/problems/min-cost-to-connect-all-points
+network-delay-time,Network Delay Time,medium,depth-first-search|breadth-first-search|graph|heap-priority-queue|shortest-path,Shortest Path,https://leetcode.com/problems/network-delay-time
+cheapest-flights-within-k-stops,Cheapest Flights Within K Stops,medium,dynamic-programming|depth-first-search|breadth-first-search|graph|heap-priority-queue|shortest-path,Shortest Path,https://leetcode.com/problems/cheapest-flights-within-k-stops
+path-with-maximum-probability,Path with Maximum Probability,medium,array|graph|heap-priority-queue|shortest-path,Shortest Path,https://leetcode.com/problems/path-with-maximum-probability
+path-with-minimum-effort,Path With Minimum Effort,medium,array|binary-search|depth-first-search|breadth-first-search|union-find|heap-priority-queue|matrix,Shortest Path,https://leetcode.com/problems/path-with-minimum-effort
+swim-in-rising-water,Swim in Rising Water,hard,array|binary-search|depth-first-search|breadth-first-search|union-find|heap-priority-queue|matrix,Shortest Path,https://leetcode.com/problems/swim-in-rising-water
+reconstruct-itinerary,Reconstruct Itinerary,hard,array|string|depth-first-search|graph|sorting|heap-priority-queue|eulerian-circuit,Eulerian Circuit,https://leetcode.com/problems/reconstruct-itinerary
+cracking-the-safe,Cracking the Safe,hard,string|depth-first-search|graph|eulerian-circuit,Eulerian Circuit,https://leetcode.com/problems/cracking-the-safe
+climbing-stairs,Climbing Stairs,easy,math|dynamic-programming|memoization,1-D DP,https://leetcode.com/problems/climbing-stairs
+min-cost-climbing-stairs,Min Cost Climbing Stairs,easy,array|dynamic-programming,1-D DP,https://leetcode.com/problems/min-cost-climbing-stairs
+house-robber,House Robber,medium,array|dynamic-programming,1-D DP,https://leetcode.com/problems/house-robber
+house-robber-ii,House Robber II,medium,array|dynamic-programming,1-D DP,https://leetcode.com/problems/house-robber-ii
+partition-equal-subset-sum,Partition Equal Subset Sum,medium,array|dynamic-programming,0/1 Knapsack,https://leetcode.com/problems/partition-equal-subset-sum
+target-sum,Target Sum,medium,array|dynamic-programming|backtracking,0/1 Knapsack,https://leetcode.com/problems/target-sum
+last-stone-weight-ii,Last Stone Weight II,medium,array|dynamic-programming,0/1 Knapsack,https://leetcode.com/problems/last-stone-weight-ii
+coin-change,Coin Change,medium,array|dynamic-programming|breadth-first-search,Unbounded Knapsack,https://leetcode.com/problems/coin-change
+coin-change-ii,Coin Change II,medium,array|dynamic-programming,Unbounded Knapsack,https://leetcode.com/problems/coin-change-ii
+perfect-squares,Perfect Squares,medium,math|dynamic-programming|breadth-first-search,Unbounded Knapsack,https://leetcode.com/problems/perfect-squares
+longest-increasing-subsequence,Longest Increasing Subsequence,medium,array|binary-search|dynamic-programming,Longest Increasing Subsequence (LIS),https://leetcode.com/problems/longest-increasing-subsequence
+number-of-longest-increasing-subsequence,Number of Longest Increasing Subsequence,medium,array|dynamic-programming|binary-indexed-tree|segment-tree,Longest Increasing Subsequence (LIS),https://leetcode.com/problems/number-of-longest-increasing-subsequence
+russian-doll-envelopes,Russian Doll Envelopes,hard,array|binary-search|dynamic-programming|sorting,Longest Increasing Subsequence (LIS),https://leetcode.com/problems/russian-doll-envelopes
+unique-paths-ii,Unique Paths II,medium,array|dynamic-programming|matrix,2D Grid DP,https://leetcode.com/problems/unique-paths-ii
+minimum-path-sum,Minimum Path Sum,medium,array|dynamic-programming|matrix,2D Grid DP,https://leetcode.com/problems/minimum-path-sum
+triangle,Triangle,medium,array|dynamic-programming,2D Grid DP,https://leetcode.com/problems/triangle
+count-square-submatrices-with-all-ones,Count Square Submatrices with All Ones,medium,array|dynamic-programming|matrix,2D Grid DP,https://leetcode.com/problems/count-square-submatrices-with-all-ones
+maximum-number-of-points-with-cost,Maximum Number of Points with Cost,medium,array|dynamic-programming|matrix,2D Grid DP,https://leetcode.com/problems/maximum-number-of-points-with-cost
+maximum-profit-in-job-scheduling,Maximum Profit in Job Scheduling,hard,array|binary-search|dynamic-programming|sorting,2D Grid DP,https://leetcode.com/problems/maximum-profit-in-job-scheduling
+burst-balloons,Burst Balloons,hard,array|dynamic-programming,2D Grid DP,https://leetcode.com/problems/burst-balloons
+cherry-pickup,Cherry Pickup,hard,array|dynamic-programming|matrix,2D Grid DP,https://leetcode.com/problems/cherry-pickup
+longest-increasing-path-in-a-matrix,Longest Increasing Path in a Matrix,hard,array|dynamic-programming|depth-first-search|breadth-first-search|graph|topological-sort|memoization|matrix,2D Grid DP,https://leetcode.com/problems/longest-increasing-path-in-a-matrix
+longest-common-subsequence,Longest Common Subsequence,medium,string|dynamic-programming,String DP,https://leetcode.com/problems/longest-common-subsequence
+longest-palindromic-subsequence,Longest Palindromic Subsequence,medium,string|dynamic-programming,String DP,https://leetcode.com/problems/longest-palindromic-subsequence
+edit-distance,Edit Distance,medium,string|dynamic-programming,String DP,https://leetcode.com/problems/edit-distance
+decode-ways,Decode Ways,medium,string|dynamic-programming,String DP,https://leetcode.com/problems/decode-ways
+word-break,Word Break,medium,array|hash-table|string|dynamic-programming|trie|memoization,String DP,https://leetcode.com/problems/word-break
+interleaving-string,Interleaving String,medium,string|dynamic-programming,String DP,https://leetcode.com/problems/interleaving-string
+wildcard-matching,Wildcard Matching,hard,string|dynamic-programming|greedy|recursion,String DP,https://leetcode.com/problems/wildcard-matching
+distinct-subsequences,Distinct Subsequences,hard,string|dynamic-programming,String DP,https://leetcode.com/problems/distinct-subsequences
+palindrome-partitioning-ii,Palindrome Partitioning II,hard,string|dynamic-programming,String DP,https://leetcode.com/problems/palindrome-partitioning-ii
+house-robber-iii,House Robber III,medium,dynamic-programming|tree|depth-first-search|binary-tree,Tree / Graph DP,https://leetcode.com/problems/house-robber-iii
+unique-binary-search-trees-ii,Unique Binary Search Trees II,medium,dynamic-programming|backtracking|tree|binary-search-tree|binary-tree,Tree / Graph DP,https://leetcode.com/problems/unique-binary-search-trees-ii
+number-of-ways-to-arrive-at-destination,Number of Ways to Arrive at Destination,medium,dynamic-programming|graph|topological-sort|shortest-path,Tree / Graph DP,https://leetcode.com/problems/number-of-ways-to-arrive-at-destination
+binary-tree-cameras,Binary Tree Cameras,hard,dynamic-programming|tree|depth-first-search|binary-tree,Tree / Graph DP,https://leetcode.com/problems/binary-tree-cameras
+sum-of-distances-in-tree,Sum of Distances in Tree,hard,dynamic-programming|tree|depth-first-search|graph,Tree / Graph DP,https://leetcode.com/problems/sum-of-distances-in-tree
+minimum-number-of-work-sessions-to-finish-the-tasks,Minimum Number of Work Sessions to Finish the Tasks,medium,array|dynamic-programming|backtracking|bit-manipulation|bitmask,Bitmask DP,https://leetcode.com/problems/minimum-number-of-work-sessions-to-finish-the-tasks
+fair-distribution-of-cookies,Fair Distribution of Cookies,medium,array|dynamic-programming|backtracking|bit-manipulation|bitmask,Bitmask DP,https://leetcode.com/problems/fair-distribution-of-cookies
+shortest-path-visiting-all-nodes,Shortest Path Visiting All Nodes,hard,dynamic-programming|bit-manipulation|breadth-first-search|graph|bitmask,Bitmask DP,https://leetcode.com/problems/shortest-path-visiting-all-nodes
+count-numbers-with-unique-digits,Count Numbers with Unique Digits,medium,math|dynamic-programming|backtracking,Digit DP,https://leetcode.com/problems/count-numbers-with-unique-digits
+number-of-digit-one,Number of Digit One,hard,math|dynamic-programming|recursion,Digit DP,https://leetcode.com/problems/number-of-digit-one
+numbers-at-most-n-given-digit-set,Numbers At Most N Given Digit Set,hard,array|math|string|binary-search|dynamic-programming,Digit DP,https://leetcode.com/problems/numbers-at-most-n-given-digit-set
+knight-probability-in-chessboard,Knight Probability in Chessboard,medium,dynamic-programming,Probability DP,https://leetcode.com/problems/knight-probability-in-chessboard
+soup-servings,Soup Servings,medium,math|dynamic-programming|probability-and-statistics,Probability DP,https://leetcode.com/problems/soup-servings
+new-21-game,New 21 Game,medium,math|dynamic-programming|sliding-window|probability-and-statistics,Probability DP,https://leetcode.com/problems/new-21-game
+best-time-to-buy-and-sell-stock-with-cooldown,Best Time to Buy and Sell Stock with Cooldown,medium,array|dynamic-programming,State Machine DP,https://leetcode.com/problems/best-time-to-buy-and-sell-stock-with-cooldown
+best-time-to-buy-and-sell-stock-iii,Best Time to Buy and Sell Stock III,hard,array|dynamic-programming,State Machine DP,https://leetcode.com/problems/best-time-to-buy-and-sell-stock-iii
+palindrome-number,Palindrome Number,easy,math,Maths / Geometry,https://leetcode.com/problems/palindrome-number
+reverse-integer,Reverse Integer,medium,math,Maths / Geometry,https://leetcode.com/problems/reverse-integer
+factorial-trailing-zeroes,Factorial Trailing Zeroes,medium,math,Maths / Geometry,https://leetcode.com/problems/factorial-trailing-zeroes
+valid-square,Valid Square,medium,math|geometry,Maths / Geometry,https://leetcode.com/problems/valid-square
+minimum-area-rectangle-ii,Minimum Area Rectangle II,medium,array|hash-table|math|geometry,Maths / Geometry,https://leetcode.com/problems/minimum-area-rectangle-ii
+max-points-on-a-line,Max Points on a Line,hard,array|hash-table|math|geometry,Maths / Geometry,https://leetcode.com/problems/max-points-on-a-line
+repeated-string-match,Repeated String Match,medium,string|string-matching,String Matching,https://leetcode.com/problems/repeated-string-match
+shortest-palindrome,Shortest Palindrome,hard,string|rolling-hash|string-matching|hash-function,String Matching,https://leetcode.com/problems/shortest-palindrome
+longest-duplicate-substring,Longest Duplicate Substring,hard,string|binary-search|sliding-window|rolling-hash|suffix-array|hash-function,String Matching,https://leetcode.com/problems/longest-duplicate-substring
+range-sum-query-mutable,Range Sum Query - Mutable,medium,array|divide-and-conquer|design|binary-indexed-tree|segment-tree,Binary Indexed Tree / Segment Tree,https://leetcode.com/problems/range-sum-query-mutable
+count-of-smaller-numbers-after-self,Count of Smaller Numbers After Self,hard,array|binary-search|divide-and-conquer|binary-indexed-tree|segment-tree|merge-sort|ordered-set,Binary Indexed Tree / Segment Tree,https://leetcode.com/problems/count-of-smaller-numbers-after-self
+minimum-interval-to-include-each-query,Minimum Interval to Include Each Query,hard,array|binary-search|line-sweep|sorting|heap-priority-queue,Line Sweep,https://leetcode.com/problems/minimum-interval-to-include-each-query
+the-skyline-problem,The Skyline Problem,hard,array|divide-and-conquer|binary-indexed-tree|segment-tree|line-sweep|sorting|heap-priority-queue|ordered-set,Line Sweep,https://leetcode.com/problems/the-skyline-problem

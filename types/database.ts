@@ -272,6 +272,134 @@ export type Database = {
           },
         ]
       }
+      pattern_mastery: {
+        Row: {
+          attempts: number
+          id: string
+          last_attempt_at: string | null
+          pattern: string
+          rating: number
+          rd: number
+          updated_at: string
+          user_id: string
+          volatility: number
+        }
+        Insert: {
+          attempts?: number
+          id?: string
+          last_attempt_at?: string | null
+          pattern: string
+          rating?: number
+          rd?: number
+          updated_at?: string
+          user_id: string
+          volatility?: number
+        }
+        Update: {
+          attempts?: number
+          id?: string
+          last_attempt_at?: string | null
+          pattern?: string
+          rating?: number
+          rd?: number
+          updated_at?: string
+          user_id?: string
+          volatility?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pattern_mastery_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      problem_attempts: {
+        Row: {
+          created_at: string
+          difficulty: string
+          id: string
+          outcome_score: number
+          pattern_identified: string | null
+          patterns: string[]
+          problem_id: string | null
+          time_seconds: number | null
+          used_hints: boolean | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty: string
+          id?: string
+          outcome_score: number
+          pattern_identified?: string | null
+          patterns?: string[]
+          problem_id?: string | null
+          time_seconds?: number | null
+          used_hints?: boolean | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          difficulty?: string
+          id?: string
+          outcome_score?: number
+          pattern_identified?: string | null
+          patterns?: string[]
+          problem_id?: string | null
+          time_seconds?: number | null
+          used_hints?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "problem_attempts_problem_id_fkey"
+            columns: ["problem_id"]
+            isOneToOne: false
+            referencedRelation: "dsa_problems"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "problem_attempts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      problem_bank: {
+        Row: {
+          acceptance_rate: number | null
+          difficulty: string
+          id: string
+          leetcode_url: string
+          patterns: string[]
+          slug: string
+          title: string
+        }
+        Insert: {
+          acceptance_rate?: number | null
+          difficulty: string
+          id?: string
+          leetcode_url: string
+          patterns?: string[]
+          slug: string
+          title: string
+        }
+        Update: {
+          acceptance_rate?: number | null
+          difficulty?: string
+          id?: string
+          leetcode_url?: string
+          patterns?: string[]
+          slug?: string
+          title?: string
+        }
+        Relationships: []
+      }
       reviews: {
         Row: {
           card_id: string

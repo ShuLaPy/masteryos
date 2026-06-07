@@ -22,7 +22,7 @@ export async function generateText(
 ): Promise<{ data: string | null; error: string | null }> {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.4-mini",
       max_tokens: maxTokens,
       messages: [
         { role: "system", content: systemPrompt },
@@ -48,7 +48,7 @@ export async function generateJSON<T>(
   const fullSystem = `${systemPrompt}\n\nIMPORTANT: Respond with ONLY valid JSON, no markdown, no explanation, no code blocks.`;
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.4-mini",
       max_tokens: maxTokens,
       response_format: { type: "json_object" },
       messages: [
@@ -74,7 +74,7 @@ export async function* streamText(
   maxTokens = 1024
 ): AsyncGenerator<string> {
   const stream = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.4-mini",
     max_tokens: maxTokens,
     stream: true,
     messages: [
