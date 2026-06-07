@@ -6,8 +6,9 @@ import Link from "next/link";
 import {
   Brain, Flame, BookOpen, Code2, Cpu, FlaskConical,
   BarChart3, Send, Loader2, Sparkles, Target, TrendingUp,
-  ArrowRight, Zap,
+  ArrowRight, Zap, GraduationCap,
 } from "lucide-react";
+import { ZonePlanView } from "@/components/app/ZonePlanView";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,7 @@ interface MentorContext {
     actualMinutes: number;
     compliancePct: number;
   };
+  generatedPlan: unknown;
 }
 
 interface ChatMessage {
@@ -53,6 +55,8 @@ const quickActions = [
   { label: "Log DSA Problem", href: "/dsa/log", icon: Code2, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20", desc: "Record today's problem" },
   { label: "Add Concept", href: "/aiml/new", icon: Cpu, color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20", desc: "Log what you learned" },
   { label: "Feynman Mode", href: "/feynman", icon: FlaskConical, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20", desc: "Teach to master" },
+  { label: "Class Prep", href: "/schedule/prep", icon: GraduationCap, color: "text-teal-400", bg: "bg-teal-500/10 border-teal-500/20", desc: "Review prereqs before lecture" },
+  { label: "This week's Bridge", href: "/schedule/bridge", icon: Sparkles, color: "text-fuchsia-400", bg: "bg-fuchsia-500/10 border-fuchsia-500/20", desc: "Lecture synthesis & gaps" },
 ];
 
 const starters = [
@@ -387,6 +391,9 @@ export default function MentorHomeClient({ ctx }: { ctx: MentorContext }) {
           actualMinutes={ctx.commitment.actualMinutes}
           compliancePct={ctx.commitment.compliancePct}
         />
+
+        {/* Today's study plan zones */}
+        <ZonePlanView rawPlan={ctx.generatedPlan} />
 
         {/* Quick Actions */}
         <div>

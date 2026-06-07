@@ -13,6 +13,7 @@ import {
   FlaskConical,
   BarChart3,
   CalendarCheck,
+  CalendarClock,
   LogOut,
   Flame,
   BookOpen,
@@ -58,6 +59,12 @@ const navItems = [
     href: "/analytics",
     icon: BarChart3,
     description: "Progress & insights",
+  },
+  {
+    label: "Schedule",
+    href: "/schedule",
+    icon: CalendarClock,
+    description: "Lectures & runway",
   },
   {
     label: "Weekly Review",

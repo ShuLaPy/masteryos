@@ -144,6 +144,7 @@ export default async function MentorHomePage() {
     lastDSASolvedAt,
     mentorMessage: planRes.data?.mentor_message ?? null,
     completionPct: planRes.data?.completion_pct ?? 0,
+    generatedPlan: planRes.data?.generated_plan ?? null,
     // New enriched data
     dsaPatterns: patternCounts,
     dsaProblemCount7d: dsaRes.data?.length ?? 0,
