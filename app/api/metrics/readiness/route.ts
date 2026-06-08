@@ -111,14 +111,27 @@ export async function GET() {
         totalR += 0;
         continue;
       }
+      // A concept only counts as "covered" once at least one of its cards has
+      // actually been reviewed. Auto-seeded cards (state 'new', reps 0) exist
+      // the moment a lecture is added but represent zero knowledge, so they
+      // must not inflate coverage or readiness. (spec §12 cold-start: an
+      // unstudied prereq is U=1, i.e. R=0.)
+      const reviewedCards = cards.filter(
+        (c) => c.state !== "new" && (c.reps ?? 0) > 0
+      );
+      if (reviewedCards.length === 0) {
+        // Only unreviewed seed cards → fully unknown, R = 0, not covered.
+        totalR += 0;
+        continue;
+      }
       studiedCount++;
-      // Average retrievability across the concept's cards
+      // Average retrievability across the concept's reviewed cards
       let conceptR = 0;
-      for (const card of cards) {
+      for (const card of reviewedCards) {
         const fsrsCard = dbCardToFSRS(card as Parameters<typeof dbCardToFSRS>[0]);
         conceptR += getRetrievability(fsrsCard);
       }
-      totalR += conceptR / cards.length;
+      totalR += conceptR / reviewedCards.length;
     }
 
     return {

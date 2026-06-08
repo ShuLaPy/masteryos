@@ -461,7 +461,7 @@ export function scorePriority(
   // Cold start: no cards means the concept is fully unknown (spec §6).
   if (cards.length === 0) return COLD_START_PRIORITY;
 
-  const R = Math.min(...cards.map((card) => getRetrievability(dbCardToFSRS(card))));
+  const R = Math.min(...cards.map(cardRetrievability));
   const U = 1 - R;
 
   const w = resolveWeights(weights);
@@ -666,7 +666,12 @@ function resolveZonePrefs(value: unknown): ZoneAllocationPreferences | null {
   return null;
 }
 
-function cardRetrievability(card: CardRow): number {
+function cardRetrievability(card: SrsCard): number {
+  // Never-reviewed cards (e.g. auto-seeded cold-start primers) represent zero
+  // knowledge. getRetrievability returns 1 for stability-0 cards, which would
+  // mask an unstudied prereq as fully mastered and drop it from the Runway —
+  // treat it as R=0 (spec §6: unstudied prereq is U=1, max urgency).
+  if (card.state === "new" || (card.reps ?? 0) === 0) return 0;
   return getRetrievability(dbCardToFSRS(card));
 }
 
