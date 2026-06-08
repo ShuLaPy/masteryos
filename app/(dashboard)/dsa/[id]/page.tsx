@@ -1,11 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, Clock, Star } from "lucide-react";
+import { ArrowLeft, ExternalLink, Clock, Star, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AIExplainSection } from "@/components/app/AIExplainSection";
 import { ApproachLearnings } from "@/components/app/ApproachLearnings";
+import { extractLCSlug } from "@/lib/leetcode";
 
 export const metadata = { title: "Problem Detail — MasteryOS" };
 
@@ -44,6 +45,16 @@ export default async function DSAProblemDetailPage({
     .single();
 
   if (!problem) notFound();
+
+  // Soft-link to problem_bank via slug parsed from the stored URL
+  const slug = extractLCSlug(problem.url);
+  const { data: bankData } = slug
+    ? await supabase
+        .from("problem_bank")
+        .select("company_tags, acceptance_rate")
+        .eq("slug", slug)
+        .maybeSingle()
+    : { data: null };
 
   const solvedAt = new Date(problem.solved_at ?? problem.created_at);
 
@@ -110,7 +121,33 @@ export default async function DSAProblemDetailPage({
               })}
             </span>
           </div>
+          {bankData?.acceptance_rate != null && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs">{Number(bankData.acceptance_rate).toFixed(1)}% acceptance</span>
+            </div>
+          )}
         </div>
+
+        {/* Company tags from problem bank */}
+        {bankData?.company_tags && bankData.company_tags.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Building2 className="w-3 h-3" />
+              Asked at
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {bankData.company_tags.map((company: string) => (
+                <Badge
+                  key={company}
+                  variant="outline"
+                  className="text-[11px] border-violet-500/30 text-violet-300 bg-violet-500/10"
+                >
+                  {company}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Patterns */}
         {problem.patterns && problem.patterns.length > 0 && (
@@ -132,6 +169,60 @@ export default async function DSAProblemDetailPage({
           </div>
         )}
 
+        {/* LeetCode topic tags */}
+        {problem.lc_topic_tags && problem.lc_topic_tags.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              Topic Tags
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {problem.lc_topic_tags.map((tag: string) => (
+                <Badge
+                  key={tag}
+                  variant="outline"
+                  className="text-[11px] border-border/40 text-muted-foreground/80"
+                >
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Problem statement from LeetCode */}
+      {problem.lc_content && (
+        <div className="glass rounded-2xl p-6 mb-4">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+            Problem Statement
+          </p>
+          <div
+            className="lc-prose text-sm text-foreground/90 leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: problem.lc_content }}
+          />
+
+          {problem.lc_hints && problem.lc_hints.length > 0 && (
+            <details className="mt-4 group">
+              <summary className="cursor-pointer text-xs font-semibold text-muted-foreground uppercase tracking-wider select-none list-none flex items-center gap-1.5 hover:text-foreground transition-colors">
+                <span className="group-open:rotate-90 transition-transform inline-block">▶</span>
+                Hints ({problem.lc_hints.length})
+              </summary>
+              <div className="mt-3 space-y-2">
+                {problem.lc_hints.map((hint: string, i: number) => (
+                  <div
+                    key={i}
+                    className="text-sm text-muted-foreground bg-surface/50 border border-border/40 rounded-lg px-3 py-2"
+                    dangerouslySetInnerHTML={{ __html: hint }}
+                  />
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+
+      {/* Approach & Learnings + AI */}
+      <div className="glass rounded-2xl p-6 mb-4 space-y-5">
         {/* Approach & Learnings */}
         <ApproachLearnings problemId={problem.id} initialNotes={problem.approach_notes} />
 

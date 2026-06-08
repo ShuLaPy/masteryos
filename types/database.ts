@@ -174,10 +174,17 @@ export type Database = {
       }
       dsa_problems: {
         Row: {
+          ai_explanation: string | null
+          ai_explanation_generated_at: string | null
+          ai_explanation_model: string | null
           approach_notes: string | null
           confidence: number | null
           difficulty: string | null
           id: string
+          lc_content: string | null
+          lc_example_testcases: string | null
+          lc_hints: string[] | null
+          lc_topic_tags: string[] | null
           patterns: string[] | null
           solved_at: string
           source: string | null
@@ -187,10 +194,17 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_explanation?: string | null
+          ai_explanation_generated_at?: string | null
+          ai_explanation_model?: string | null
           approach_notes?: string | null
           confidence?: number | null
           difficulty?: string | null
           id?: string
+          lc_content?: string | null
+          lc_example_testcases?: string | null
+          lc_hints?: string[] | null
+          lc_topic_tags?: string[] | null
           patterns?: string[] | null
           solved_at?: string
           source?: string | null
@@ -200,10 +214,17 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_explanation?: string | null
+          ai_explanation_generated_at?: string | null
+          ai_explanation_model?: string | null
           approach_notes?: string | null
           confidence?: number | null
           difficulty?: string | null
           id?: string
+          lc_content?: string | null
+          lc_example_testcases?: string | null
+          lc_hints?: string[] | null
+          lc_topic_tags?: string[] | null
           patterns?: string[] | null
           solved_at?: string
           source?: string | null
@@ -379,30 +400,39 @@ export type Database = {
       problem_bank: {
         Row: {
           acceptance_rate: number | null
+          company_tags: string[] | null
           difficulty: string
+          elo_rating: number | null
           id: string
           leetcode_url: string
           patterns: string[]
           slug: string
           title: string
+          video_solutions: Json | null
         }
         Insert: {
           acceptance_rate?: number | null
+          company_tags?: string[] | null
           difficulty: string
+          elo_rating?: number | null
           id?: string
           leetcode_url: string
           patterns?: string[]
           slug: string
           title: string
+          video_solutions?: Json | null
         }
         Update: {
           acceptance_rate?: number | null
+          company_tags?: string[] | null
           difficulty?: string
+          elo_rating?: number | null
           id?: string
           leetcode_url?: string
           patterns?: string[]
           slug?: string
           title?: string
+          video_solutions?: Json | null
         }
         Relationships: []
       }

@@ -5,6 +5,7 @@ import { newCard, fsrsCardToDB } from "@/lib/fsrs";
 import { logAttemptAndUpdateMastery } from "@/lib/dsa-planner";
 import type { Difficulty, AttemptOutcome } from "@/lib/pattern-rating";
 import { normalizePatterns, DISPLAY_TO_CANONICAL } from "@/lib/constants";
+import { fetchLeetCodeProblem, extractLCSlug } from "@/lib/leetcode";
 import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
@@ -117,7 +118,21 @@ Respond ONLY with a JSON object containing a single key "cards" which is an arra
     }
   }
 
-  // 4. Generate embedding for semantic search (non-blocking)
+  // 4. Fetch LeetCode question content and store it
+  const lcSlug = extractLCSlug(url);
+  if (lcSlug) {
+    const lcData = await fetchLeetCodeProblem(lcSlug);
+    if (lcData) {
+      await supabase.from("dsa_problems").update({
+        lc_content: lcData.content,
+        lc_topic_tags: lcData.topicTags.map((t) => t.name),
+        lc_hints: lcData.hints,
+        lc_example_testcases: lcData.exampleTestcases,
+      }).eq("id", problem.id);
+    }
+  }
+
+  // 5. Generate embedding for semantic search (non-blocking)
   try {
     const embeddingContent = [title, difficulty ? `Difficulty: ${difficulty}` : "", patterns?.length ? `Patterns: ${patterns.join(", ")}` : "", approach_notes || ""].filter(Boolean).join("\n");
     if (embeddingContent.length >= 10) {
