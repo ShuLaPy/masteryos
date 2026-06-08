@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, Clock, Star, BookOpen } from "lucide-react";
+import { ArrowLeft, ExternalLink, Clock, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AIExplainSection } from "@/components/app/AIExplainSection";
+import { ApproachLearnings } from "@/components/app/ApproachLearnings";
 
 export const metadata = { title: "Problem Detail — MasteryOS" };
 
@@ -132,23 +133,7 @@ export default async function DSAProblemDetailPage({
         )}
 
         {/* Approach & Learnings */}
-        <div>
-          <div className="flex items-center gap-1.5 mb-2">
-            <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Approach &amp; Learnings
-            </p>
-          </div>
-          {problem.approach_notes ? (
-            <p className="text-sm text-foreground whitespace-pre-wrap font-mono leading-relaxed bg-secondary/40 rounded-xl p-4 border border-border/40">
-              {problem.approach_notes}
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground italic p-4 bg-secondary/20 rounded-xl border border-border/30">
-              No approach notes were logged for this problem.
-            </p>
-          )}
-        </div>
+        <ApproachLearnings problemId={problem.id} initialNotes={problem.approach_notes} />
 
         {/* AI Explain */}
         <div className="pt-1">

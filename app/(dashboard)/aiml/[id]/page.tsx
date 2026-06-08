@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Brain, Sparkles, BookOpen, Clock } from "lucide-react";
+import { ArrowLeft, Sparkles, Clock } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { RelatedConcepts } from "@/components/app/RelatedConcepts";
 import { PrerequisitesEditor } from "@/components/app/PrerequisitesEditor";
+import { ConceptNotesCard } from "@/components/app/ConceptNotesCard";
 
 export const metadata = { title: "Concept Details — MasteryOS" };
 
@@ -73,14 +74,11 @@ export default async function AIMLConceptPage({ params }: { params: Promise<{ id
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-2 space-y-6">
-          <div className="glass rounded-2xl p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-primary" /> Concept Notes
-            </h2>
-            <div className="prose prose-invert prose-sm max-w-none text-muted-foreground whitespace-pre-wrap">
-              {concept.notes || "No notes provided for this concept."}
-            </div>
-          </div>
+          <ConceptNotesCard
+            conceptId={concept.id}
+            initialNotes={concept.notes}
+            initialCardStatus={concept.card_status}
+          />
         </div>
 
         <div className="space-y-6">
