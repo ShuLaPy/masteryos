@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Sparkles, Loader2, Code2, CheckCircle2, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ type BankTitlesResponse = { data: BankTitle[] | null; error: string | null };
 
 export default function LogDSAPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [form, setForm] = useState({
@@ -53,6 +54,30 @@ export default function LogDSAPage() {
     const t = setTimeout(() => setDebouncedUrl(form.url), 600);
     return () => clearTimeout(t);
   }, [form.url]);
+
+  // On mount: pre-populate from ?url= or ?slug= query params
+  useEffect(() => {
+    const urlParam = searchParams.get("url");
+    const slugParam = searchParams.get("slug");
+
+    if (urlParam) {
+      // Set both the visible input and the debounced value immediately so the
+      // prefill query fires without waiting 600ms.
+      setForm((f) => ({ ...f, url: urlParam }));
+      setDebouncedUrl(urlParam);
+      return;
+    }
+
+    if (slugParam) {
+      fetch(`/api/dsa/prefill?slug=${encodeURIComponent(slugParam)}`)
+        .then((r) => r.json() as Promise<PrefillResponse>)
+        .then((json) => {
+          if (json.data?.prefill) applyPrefill(json.data.prefill);
+        })
+        .catch(() => toast.error("Failed to load problem details"));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount
 
   // Bank title dropdown state.
   const [titleQuery, setTitleQuery] = useState("");

@@ -13,6 +13,7 @@ import {
   CheckSquare,
   ChevronDown,
   Search,
+  BookCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ type SessionProblem = {
   url: string;
   patterns: string[];
   rationale: string;
+  already_logged: boolean;
 };
 
 type SessionResult = {
@@ -317,6 +319,11 @@ export default function CompanyPracticePage() {
                         <span className="text-xs text-muted-foreground">
                           ~{DIFFICULTY_MINUTES[prob.difficulty] ?? 35}m
                         </span>
+                        {prob.already_logged && (
+                          <span className="flex items-center gap-0.5 text-[10px] text-emerald-400 font-medium">
+                            <BookCheck className="w-3 h-3" /> Logged
+                          </span>
+                        )}
                       </div>
 
                       {prob.rationale && (
@@ -341,9 +348,13 @@ export default function CompanyPracticePage() {
                     {/* Log attempt link */}
                     <Link
                       href={`/dsa/log?url=${encodeURIComponent(prob.url)}`}
-                      className="shrink-0 text-[10px] text-primary hover:text-primary/80 transition-colors whitespace-nowrap mt-1"
+                      className={`shrink-0 text-[10px] whitespace-nowrap mt-1 transition-colors ${
+                        prob.already_logged
+                          ? "text-muted-foreground hover:text-foreground"
+                          : "text-primary hover:text-primary/80"
+                      }`}
                     >
-                      Log attempt →
+                      {prob.already_logged ? "Log again →" : "Log attempt →"}
                     </Link>
                   </div>
                 </div>

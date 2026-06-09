@@ -20,25 +20,53 @@ export async function POST(request: NextRequest) {
 
   if (!title) return Response.json({ error: "Title is required" }, { status: 400 });
 
-  // 1. Insert Problem
-  const { data: problem, error: probError } = await supabase
-    .from("dsa_problems")
-    .insert({
-      user_id: user.id,
-      title,
-      url,
-      difficulty,
-      patterns,
-      approach_notes,
-      time_taken_minutes,
-      confidence,
-      source: "manual",
-    })
-    .select()
-    .single();
+  // 1. Check for an existing dsa_problems row for this (user, url) pair.
+  //    If found, reuse it so we never create duplicates.
+  let problem: { id: string; [key: string]: unknown } | undefined;
+  let isNew = false;
 
-  if (probError || !problem) {
-    return Response.json({ error: "Failed to save problem" }, { status: 500 });
+  if (url) {
+    const { data: existing } = await supabase
+      .from("dsa_problems")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("url", url)
+      .maybeSingle();
+
+    if (existing) {
+      problem = existing;
+    } else {
+      isNew = true;
+    }
+  } else {
+    isNew = true;
+  }
+
+  if (isNew) {
+    const { data: inserted, error: probError } = await supabase
+      .from("dsa_problems")
+      .insert({
+        user_id: user.id,
+        title,
+        url,
+        difficulty,
+        patterns,
+        approach_notes,
+        time_taken_minutes,
+        confidence,
+        source: "manual",
+      })
+      .select()
+      .single();
+
+    if (probError || !inserted) {
+      return Response.json({ error: "Failed to save problem" }, { status: 500 });
+    }
+    problem = inserted;
+  }
+
+  if (!problem) {
+    return Response.json({ error: "Failed to resolve problem record" }, { status: 500 });
   }
 
   // 2. Log attempt and update pattern mastery (Glicko-2)

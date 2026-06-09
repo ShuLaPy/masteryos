@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     Date.now() - SOLVED_WELL_DAYS * 86_400_000,
   ).toISOString();
 
-  const [bankRes, masteryRes, attemptsRes] = await Promise.all([
+  const [bankRes, masteryRes, attemptsRes, loggedRes] = await Promise.all([
     supabase
       .from("problem_bank")
       .select("id, slug, title, difficulty, patterns, leetcode_url, company_tags")
@@ -108,9 +108,13 @@ export async function POST(request: Request) {
       .not("problem_id", "is", null)
       .gte("created_at", cutoffSolved)
       .gte("outcome_score", SOLVED_WELL_SCORE),
+    supabase
+      .from("dsa_problems")
+      .select("url")
+      .eq("user_id", user.id),
   ]);
 
-  const fetchErr = bankRes.error ?? masteryRes.error ?? attemptsRes.error;
+  const fetchErr = bankRes.error ?? masteryRes.error ?? attemptsRes.error ?? loggedRes.error;
   if (fetchErr) {
     return Response.json(
       { data: null, error: `Data fetch failed: ${fetchErr.message}` },
@@ -146,6 +150,13 @@ export async function POST(request: Request) {
       .filter((id): id is string => typeof id === "string"),
   );
 
+  // Problems the user has already logged in dsa_problems (any attempt, any score)
+  const loggedUrls = new Set<string>(
+    (loggedRes.data ?? [])
+      .map((r) => r.url)
+      .filter((u): u is string => typeof u === "string"),
+  );
+
   type Candidate = {
     id: string;
     slug: string;
@@ -155,6 +166,7 @@ export async function POST(request: Request) {
     leetcode_url: string;
     weakness: number;
     estimatedMinutes: number;
+    already_logged: boolean;
   };
 
   const candidates: Candidate[] = (bankRes.data ?? [])
@@ -172,6 +184,7 @@ export async function POST(request: Request) {
         leetcode_url: p.leetcode_url,
         weakness,
         estimatedMinutes: DIFFICULTY_MINUTES[p.difficulty] ?? 35,
+        already_logged: loggedUrls.has(p.leetcode_url),
       };
     });
 
@@ -277,6 +290,7 @@ Order into a productive session and write one rationale per problem.`;
           url: c.leetcode_url,
           patterns: c.patterns,
           rationale: "",
+          already_logged: c.already_logged,
         })),
         totalEstimatedMinutes: totalMinutes,
       },
@@ -315,6 +329,7 @@ Order into a productive session and write one rationale per problem.`;
         url: c.leetcode_url,
         patterns: c.patterns,
         rationale: (r.rationale ?? "").trim(),
+        already_logged: c.already_logged,
       };
     });
 
@@ -329,6 +344,7 @@ Order into a productive session and write one rationale per problem.`;
         url: c.leetcode_url,
         patterns: c.patterns,
         rationale: "",
+        already_logged: c.already_logged,
       });
     }
   }
