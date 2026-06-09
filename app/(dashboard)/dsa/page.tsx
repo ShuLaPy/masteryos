@@ -19,6 +19,7 @@ import DsaCoachCard from "@/components/app/dsa/DsaCoachCard";
 import SuggestedProblemList from "@/components/app/dsa/SuggestedProblemList";
 import TrajectorySparkline from "@/components/app/dsa/TrajectorySparkline";
 import WeeklySummaryStrip from "@/components/app/dsa/WeeklySummaryStrip";
+import { BlindModeToggle } from "@/components/app/dsa/BlindModeToggle";
 
 export const metadata = { title: "DSA Track — MasteryOS" };
 
@@ -44,7 +45,7 @@ export default async function DSATrackPage() {
   const cutoff14d = new Date(Date.now() - 14 * 86_400_000).toISOString();
   const cutoff12w = new Date(Date.now() - 84 * 86_400_000).toISOString();
 
-  const [masteryRes, attemptsCoachRes, attemptsTrajectoryRes, bankRes, solvedRes, countRes, allAttemptsRes] =
+  const [masteryRes, attemptsCoachRes, attemptsTrajectoryRes, bankRes, solvedRes, countRes, allAttemptsRes, profileRes] =
     await Promise.all([
       supabase
         .from("pattern_mastery")
@@ -77,7 +78,11 @@ export default async function DSATrackPage() {
         .from("problem_attempts")
         .select("patterns, difficulty, outcome_score, time_seconds, pattern_identified, created_at")
         .eq("user_id", user.id),
+      supabase.from("users").select("settings").eq("id", user.id).single(),
     ]);
+
+  const blindMode =
+    ((profileRes.data?.settings ?? {}) as Record<string, unknown>).blind_mode === true;
 
   // ── Mastery map ────────────────────────────────────────────────────────────
   const masteryByPattern = new Map<CanonicalPattern, MasterySnapshot>(
@@ -306,11 +311,14 @@ export default async function DSATrackPage() {
             Pattern mastery · Glicko-2 ratings · ZPD suggestions
           </p>
         </div>
-        <Link href="/dsa/log">
-          <Button className="bg-emerald-500 hover:bg-emerald-600 text-white">
-            <Plus className="w-4 h-4 mr-2" /> Log Problem
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <BlindModeToggle initialValue={blindMode} />
+          <Link href="/dsa/log">
+            <Button className="bg-emerald-500 hover:bg-emerald-600 text-white">
+              <Plus className="w-4 h-4 mr-2" /> Log Problem
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Stats row */}

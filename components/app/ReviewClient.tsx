@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import ResolveLadderCard, { type ResolveProblem } from "@/components/app/ResolveLadderCard";
 
 interface SRSCard {
   id: string;
@@ -18,6 +19,7 @@ interface SRSCard {
   front: string;
   back: string;
   source_type: string;
+  source_id: string;
   reps: number;
   lapses: number;
   stability: number;
@@ -26,6 +28,7 @@ interface SRSCard {
 interface ReviewClientProps {
   cards: SRSCard[];
   userId: string;
+  resolveProblems?: Record<string, ResolveProblem>;
 }
 
 const RATINGS = [
@@ -35,7 +38,7 @@ const RATINGS = [
   { value: 4, label: "Easy", color: "bg-violet-500/20 border-violet-500/40 text-violet-300 hover:bg-violet-500/30", key: "4" },
 ];
 
-export default function ReviewClient({ cards, userId }: ReviewClientProps) {
+export default function ReviewClient({ cards, userId, resolveProblems = {} }: ReviewClientProps) {
   const [queue, setQueue] = useState(cards);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -52,8 +55,13 @@ export default function ReviewClient({ cards, userId }: ReviewClientProps) {
   const progress = total > 0 ? (reviewed / total) * 100 : 0;
   const current = queue[currentIdx];
 
+  const isResolve = current?.source_type === "dsa_resolve";
+  const resolveProblem = current ? resolveProblems[current.source_id] : undefined;
+
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
+      // Re-solve ladder cards manage their own reveal/grade UI (mouse-driven).
+      if (current?.source_type === "dsa_resolve") return;
       if (!flipped) {
         if (e.key === " " || e.key === "Enter") {
           e.preventDefault();
@@ -201,6 +209,16 @@ export default function ReviewClient({ cards, userId }: ReviewClientProps) {
       {/* Card */}
       <div className="flex-1 flex items-center justify-center">
         <div className="w-full max-w-2xl">
+          {isResolve && resolveProblem ? (
+            <ResolveLadderCard
+              key={current.id}
+              card={{ id: current.id, reps: current.reps, source_id: current.source_id }}
+              problem={resolveProblem}
+              submitting={submitting}
+              onGrade={submitRating}
+            />
+          ) : (
+          <>
           {/* Card type badge */}
           <div className="flex justify-center mb-4">
             <Badge className="bg-primary/10 text-primary border-primary/20 capitalize">
@@ -297,6 +315,8 @@ export default function ReviewClient({ cards, userId }: ReviewClientProps) {
               </motion.div>
             )}
           </AnimatePresence>
+          </>
+          )}
         </div>
       </div>
     </div>

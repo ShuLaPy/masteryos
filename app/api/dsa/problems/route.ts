@@ -74,6 +74,32 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // 2b. Create a re-solve ladder card (single card per problem; the rung
+  // escalates with reps in Daily Review — see ResolveLadderCard). Scoped to
+  // medium/hard problems per spec §5.3. Idempotent: skip if one already exists.
+  const resolveDifficulty = (difficulty ?? "").toLowerCase();
+  if (resolveDifficulty === "medium" || resolveDifficulty === "hard") {
+    const { data: existingResolve } = await supabase
+      .from("srs_cards")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("source_type", "dsa_resolve")
+      .eq("source_id", problem.id)
+      .limit(1);
+
+    if (!existingResolve || existingResolve.length === 0) {
+      await supabase.from("srs_cards").insert({
+        user_id: user.id,
+        card_type: "resolve",
+        front: title,
+        back: "Re-solve ladder — recall the insight, sketch the approach, then re-solve.",
+        source_type: "dsa_resolve",
+        source_id: problem.id,
+        ...fsrsCardToDB(newCard()),
+      });
+    }
+  }
+
   // 3. Generate generic pattern flashcards if they don't exist
   let cardsGenerated = 0;
   if (patterns && patterns.length > 0) {

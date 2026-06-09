@@ -6,15 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AIExplainSection } from "@/components/app/AIExplainSection";
 import { ApproachLearnings } from "@/components/app/ApproachLearnings";
+import { BlindModeSection } from "@/components/app/dsa/BlindModeSection";
+import { BlindModeToggle } from "@/components/app/dsa/BlindModeToggle";
 import { extractLCSlug } from "@/lib/leetcode";
 
 export const metadata = { title: "Problem Detail — MasteryOS" };
-
-function difficultyColor(diff: string) {
-  if (diff === "easy") return "text-emerald-400 bg-emerald-500/15 border-emerald-500/25";
-  if (diff === "medium") return "text-amber-400 bg-amber-500/15 border-amber-500/25";
-  return "text-red-400 bg-red-500/15 border-red-500/25";
-}
 
 function confidenceLabel(c: number) {
   if (c === 1) return "Confused";
@@ -37,14 +33,20 @@ export default async function DSAProblemDetailPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: problem } = await supabase
-    .from("dsa_problems")
-    .select("*")
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .single();
+  const [{ data: problem }, { data: profile }] = await Promise.all([
+    supabase
+      .from("dsa_problems")
+      .select("*")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .single(),
+    supabase.from("users").select("settings").eq("id", user.id).single(),
+  ]);
 
   if (!problem) notFound();
+
+  const blindMode =
+    ((profile?.settings ?? {}) as Record<string, unknown>).blind_mode === true;
 
   // Soft-link to problem_bank via slug parsed from the stored URL
   const slug = extractLCSlug(problem.url);
@@ -67,35 +69,39 @@ export default async function DSAProblemDetailPage({
             <ArrowLeft className="w-4 h-4" />
           </Button>
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-xl font-bold text-foreground">Problem Details</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Your logged approach and learnings</p>
         </div>
+        <BlindModeToggle initialValue={blindMode} />
       </div>
 
       {/* Title row */}
       <div className="glass rounded-2xl p-6 mb-4 space-y-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <h2 className="text-lg font-semibold text-foreground truncate">{problem.title}</h2>
-            {problem.url && (
-              <a
-                href={problem.url}
-                target="_blank"
-                rel="noreferrer"
-                className="shrink-0 text-muted-foreground hover:text-emerald-400 transition-colors"
-                aria-label="Open problem on LeetCode"
-              >
-                <ExternalLink className="w-4 h-4" />
-              </a>
-            )}
-          </div>
-          <Badge
-            className={`capitalize text-xs px-2 py-0.5 border shrink-0 ${difficultyColor(problem.difficulty)}`}
-          >
-            {problem.difficulty}
-          </Badge>
+        <div className="flex items-center gap-2 min-w-0">
+          <h2 className="text-lg font-semibold text-foreground truncate">{problem.title}</h2>
+          {problem.url && (
+            <a
+              href={problem.url}
+              target="_blank"
+              rel="noreferrer"
+              className="shrink-0 text-muted-foreground hover:text-emerald-400 transition-colors"
+              aria-label="Open problem on LeetCode"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          )}
         </div>
+
+        {/* Difficulty + patterns (blind-mode aware) */}
+        <BlindModeSection
+          key={`blind-${blindMode}`}
+          difficulty={problem.difficulty}
+          patterns={(problem.patterns as string[] | null) ?? []}
+          lcTopicTags={(problem.lc_topic_tags as string[] | null) ?? []}
+          problemSlug={slug}
+          blindMode={blindMode}
+        />
 
         {/* Meta row */}
         <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
@@ -148,46 +154,6 @@ export default async function DSAProblemDetailPage({
             </div>
           </div>
         )}
-
-        {/* Patterns */}
-        {problem.patterns && problem.patterns.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              Patterns
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {problem.patterns.map((p: string) => (
-                <Badge
-                  key={p}
-                  variant="outline"
-                  className="text-[11px] border-border/60 text-muted-foreground"
-                >
-                  {p}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* LeetCode topic tags */}
-        {problem.lc_topic_tags && problem.lc_topic_tags.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              Topic Tags
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {problem.lc_topic_tags.map((tag: string) => (
-                <Badge
-                  key={tag}
-                  variant="outline"
-                  className="text-[11px] border-border/40 text-muted-foreground/80"
-                >
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Problem statement from LeetCode */}
@@ -205,10 +171,10 @@ export default async function DSAProblemDetailPage({
             <details className="mt-4 group">
               <summary className="cursor-pointer text-xs font-semibold text-muted-foreground uppercase tracking-wider select-none list-none flex items-center gap-1.5 hover:text-foreground transition-colors">
                 <span className="group-open:rotate-90 transition-transform inline-block">▶</span>
-                Hints ({problem.lc_hints.length})
+                Hints ({(problem.lc_hints as string[]).length})
               </summary>
               <div className="mt-3 space-y-2">
-                {problem.lc_hints.map((hint: string, i: number) => (
+                {(problem.lc_hints as string[]).map((hint: string, i: number) => (
                   <div
                     key={i}
                     className="text-sm text-muted-foreground bg-surface/50 border border-border/40 rounded-lg px-3 py-2"
@@ -223,10 +189,8 @@ export default async function DSAProblemDetailPage({
 
       {/* Approach & Learnings + AI */}
       <div className="glass rounded-2xl p-6 mb-4 space-y-5">
-        {/* Approach & Learnings */}
         <ApproachLearnings problemId={problem.id} initialNotes={problem.approach_notes} />
 
-        {/* AI Explain */}
         <div className="pt-1">
           <AIExplainSection problemId={problem.id} />
         </div>
