@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Plus, Code2, Sparkles, Brain } from "lucide-react";
+import { Plus, Code2, Sparkles, Brain, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { complete } from "@/lib/ai-router";
 import {
@@ -385,14 +385,22 @@ export default async function DSATrackPage() {
       {/* Suggestions */}
       <SuggestedProblemList suggestions={suggestions} />
 
-      {/* Explore all problems link */}
-      <div className="flex items-center justify-center pt-2">
+      {/* Bottom links */}
+      <div className="flex items-center justify-center gap-6 pt-2">
         <Link
           href="/dsa/problems"
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
         >
           <Brain className="w-3.5 h-3.5" />
           Browse all logged problems
+        </Link>
+        <span className="text-border">·</span>
+        <Link
+          href="/dsa/company-practice"
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-violet-400 transition-colors"
+        >
+          <Building2 className="w-3.5 h-3.5" />
+          Company practice session
         </Link>
       </div>
     </div>
