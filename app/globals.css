@@ -200,6 +200,32 @@ a, button {
   padding: 0.1em 0.35em;
   color: oklch(0.75 0.22 280);
 }
+.bridge-prose pre {
+  background: oklch(1 0 0 / 5%);
+  border: 1px solid oklch(1 0 0 / 8%);
+  border-radius: 8px;
+  padding: 0.75em 1em;
+  overflow-x: auto;
+  margin-top: 0.75em;
+  font-family: var(--font-geist-mono, monospace);
+  font-size: 0.82em;
+}
+.bridge-prose pre code { background: none; border: none; padding: 0; font-size: 1em; color: inherit; }
+.bridge-prose blockquote {
+  border-left: 3px solid oklch(1 0 0 / 15%);
+  margin: 0.75em 0;
+  padding-left: 1em;
+  color: oklch(0.7 0.01 260);
+  font-style: italic;
+}
+.bridge-prose hr {
+  border: none;
+  border-top: 1px solid oklch(1 0 0 / 10%);
+  margin: 1.25em 0;
+}
+.bridge-prose table { width: 100%; border-collapse: collapse; margin-top: 0.75em; font-size: 0.875em; }
+.bridge-prose th, .bridge-prose td { border: 1px solid oklch(1 0 0 / 12%); padding: 0.4em 0.75em; text-align: left; }
+.bridge-prose th { background: oklch(1 0 0 / 5%); color: oklch(0.97 0.01 260); font-weight: 600; }
 
 /* LeetCode problem content prose */
 .lc-prose p { margin-top: 0.75em; margin-bottom: 0; }

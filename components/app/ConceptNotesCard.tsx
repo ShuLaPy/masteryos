@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { BookOpen, Plus, Pencil, Loader2 } from "lucide-react";
+import { BookOpen, Plus, Pencil, Loader2, Sparkles } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type CardStatus = "none" | "seeded" | "learned";
 
@@ -69,9 +71,7 @@ export function ConceptNotesCard({
   }, [editing]);
 
   function startEditing() {
-    // Pre-fill only when the user has their own notes (learned); seeded
-    // notes are auto-generated, so start blank.
-    setDraft(status === "learned" ? notes ?? "" : "");
+    setDraft(notes ?? "");
     mutation.reset();
     setEditing(true);
   }
@@ -102,6 +102,28 @@ export function ConceptNotesCard({
             >
               <Pencil className="w-3.5 h-3.5" /> Edit Notes
             </button>
+          ) : notes ? (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={startEditing}
+                className="shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+              >
+                <Pencil className="w-3.5 h-3.5" /> Edit Notes
+              </button>
+              <button
+                type="button"
+                onClick={startEditing}
+                className="shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors"
+                style={{
+                  color: "#10b981",
+                  borderColor: "rgba(16, 185, 129, 0.3)",
+                  backgroundColor: "rgba(16, 185, 129, 0.1)",
+                }}
+              >
+                <Sparkles className="w-3.5 h-3.5" /> Generate Cards
+              </button>
+            </div>
           ) : (
             <button
               type="button"
@@ -173,10 +195,12 @@ export function ConceptNotesCard({
             </button>
           </div>
         </div>
-      ) : (
-        <div className="prose prose-invert prose-sm max-w-none text-muted-foreground whitespace-pre-wrap">
-          {notes || "No notes provided for this concept."}
+      ) : notes ? (
+        <div className="bridge-prose">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{notes}</ReactMarkdown>
         </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">No notes provided for this concept.</p>
       )}
     </div>
   );
