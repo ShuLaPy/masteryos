@@ -3,10 +3,12 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   Brain, Flame, BookOpen, Code2, Cpu, FlaskConical,
   BarChart3, Send, Loader2, Sparkles, Target, TrendingUp,
-  ArrowRight, Zap, GraduationCap,
+  ArrowRight, Zap, GraduationCap, CalendarClock, AlertTriangle,
 } from "lucide-react";
 import { ZonePlanView } from "@/components/app/ZonePlanView";
 import { Button } from "@/components/ui/button";
@@ -14,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { InsightCards } from "@/components/app/InsightCards";
 import CommitmentWidget from "@/components/app/CommitmentWidget";
+import type { LectureIntel } from "@/lib/mentor-context";
 
 interface MentorContext {
   userId: string;
@@ -43,6 +46,15 @@ interface MentorContext {
     compliancePct: number;
   };
   generatedPlan: unknown;
+  lectureIntel: LectureIntel | null;
+}
+
+/** Tailwind bg color for a 0–1 readiness score (matches getRetentionColor tiers). */
+function readinessBg(score: number): string {
+  if (score >= 0.85) return "bg-emerald-400";
+  if (score >= 0.65) return "bg-amber-400";
+  if (score >= 0.4) return "bg-orange-400";
+  return "bg-red-400";
 }
 
 interface ChatMessage {
@@ -153,6 +165,10 @@ export default function MentorHomeClient({ ctx }: { ctx: MentorContext }) {
     ? Math.floor((Date.now() - new Date(ctx.lastDSASolvedAt).getTime()) / 86400000)
     : null;
 
+  const nextLecture = ctx.lectureIntel?.upcoming?.[0] ?? null;
+  const nextLecturePrereqGaps =
+    nextLecture?.prereqs.filter((p) => p.status !== "strong") ?? [];
+
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Left panel — Chat */}
@@ -201,7 +217,9 @@ export default function MentorHomeClient({ ctx }: { ctx: MentorContext }) {
                     <span className="text-xs font-semibold text-primary">AI Mentor</span>
                     <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-primary/30 text-primary/70">GPT-4o</Badge>
                   </div>
-                  <p className="text-sm text-foreground leading-relaxed">{greeting}</p>
+                  <div className="bridge-prose text-sm text-foreground leading-relaxed">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{greeting}</ReactMarkdown>
+                  </div>
                 </div>
                 {/* Starter prompts */}
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -247,7 +265,15 @@ export default function MentorHomeClient({ ctx }: { ctx: MentorContext }) {
                       ? "bg-primary/20 border border-primary/20 rounded-tr-sm text-foreground"
                       : "glass rounded-tl-sm text-foreground"
                   }`}>
-                    {msg.content || (
+                    {msg.content ? (
+                      msg.role === "assistant" ? (
+                        <div className="bridge-prose">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <span className="whitespace-pre-wrap">{msg.content}</span>
+                      )
+                    ) : (
                       <span className="flex items-center gap-2 text-muted-foreground">
                         <Loader2 className="w-3 h-3 animate-spin" /> Thinking...
                       </span>
@@ -299,6 +325,55 @@ export default function MentorHomeClient({ ctx }: { ctx: MentorContext }) {
 
         {/* Stats cards */}
         <div className="space-y-2">
+          {/* Next lecture readiness — the headline "what's coming" signal */}
+          {nextLecture && (
+            <div className={`glass rounded-xl p-4 ${nextLecture.imminent && nextLecturePrereqGaps.length > 0 ? "border-red-500/30" : ""}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <CalendarClock className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-medium text-muted-foreground">Next lecture</span>
+                {nextLecture.imminent && (
+                  <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-300 border border-red-500/20 uppercase tracking-wide">
+                    Soon
+                  </span>
+                )}
+              </div>
+              <p className="text-sm font-semibold text-foreground truncate">{nextLecture.title}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {nextLecture.daysUntil === 0
+                  ? "Today"
+                  : nextLecture.daysUntil === 1
+                    ? "Tomorrow"
+                    : `in ${nextLecture.daysUntil} days`}{" "}
+                · {Math.round(nextLecture.readinessScore * 100)}% ready
+              </p>
+              <div className="mt-2 h-1.5 rounded-full bg-secondary overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${readinessBg(nextLecture.readinessScore)}`}
+                  style={{ width: `${Math.round(nextLecture.readinessScore * 100)}%` }}
+                />
+              </div>
+              {nextLecturePrereqGaps.length > 0 && (
+                <div className="mt-2.5 pt-2.5 border-t border-border/40 space-y-1.5">
+                  {nextLecturePrereqGaps.slice(0, 3).map((p) => (
+                    <div key={p.conceptId} className="flex items-center gap-1.5">
+                      <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
+                      <span className="text-[10px] text-foreground truncate">{p.title}</span>
+                      <span className={`ml-auto text-[9px] uppercase tracking-wide shrink-0 ${p.status === "unstudied" ? "text-red-400" : "text-amber-400"}`}>
+                        {p.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Link
+                href="/schedule/prep"
+                className="mt-2.5 inline-flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors"
+              >
+                Prep now <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+          )}
+
           <div className="glass rounded-xl p-4 flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-violet-500/15 flex items-center justify-center">
               <BookOpen className="w-4 h-4 text-violet-400" />

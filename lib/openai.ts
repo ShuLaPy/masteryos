@@ -18,11 +18,12 @@ export type OpenAIMessage = {
 export async function generateText(
   systemPrompt: string,
   userMessage: string,
-  maxTokens = 1024
+  maxTokens = 1024,
+  model = "gpt-4o-mini"
 ): Promise<{ data: string | null; error: string | null }> {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model,
       max_tokens: maxTokens,
       messages: [
         { role: "system", content: systemPrompt },
@@ -71,10 +72,11 @@ export async function generateJSON<T>(
 export async function* streamText(
   systemPrompt: string,
   messages: { role: "user" | "assistant"; content: string }[],
-  maxTokens = 1024
+  maxTokens = 1024,
+  model = "gpt-4o-mini"
 ): AsyncGenerator<string> {
   const stream = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model,
     max_tokens: maxTokens,
     stream: true,
     messages: [

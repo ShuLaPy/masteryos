@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import MentorHomeClient from "@/components/app/MentorHomeClient";
 import { getWeekStartISO, parseSettings } from "@/lib/accountability";
+import { computeLectureIntelligence } from "@/lib/mentor-context";
 
 export const metadata = {
   title: "AI Mentor — MasteryOS",
@@ -20,7 +21,7 @@ export default async function MentorHomePage() {
   const weekStart = getWeekStartISO();
 
   // Fetch all context for the mentor in parallel
-  const [profileRes, dueRes, weakAIML, dsaRes, planRes, reviewStatsRes, weeklyActivityRes, weekReviewsRes, weekSessionsRes] = await Promise.all([
+  const [profileRes, dueRes, weakAIML, dsaRes, planRes, reviewStatsRes, weeklyActivityRes, weekReviewsRes, weekSessionsRes, lectureIntelRes] = await Promise.all([
     supabase
       .from("users")
       .select("display_name, streak_count, daily_goal_minutes, settings")
@@ -73,6 +74,8 @@ export default async function MentorHomePage() {
       .select("actual_minutes")
       .eq("user_id", user.id)
       .gte("started_at", weekStart),
+    // Authoritative lecture intelligence: upcoming-lecture readiness + prereq gaps
+    computeLectureIntelligence(supabase, user.id),
   ]);
 
   // Build DSA pattern frequency map
@@ -162,6 +165,8 @@ export default async function MentorHomePage() {
       actualMinutes: commitmentActualMinutes,
       compliancePct: commitmentCompliancePct,
     },
+    // Upcoming-lecture readiness for the right-panel "Next Lecture" card
+    lectureIntel: lectureIntelRes.data,
   };
 
   return <MentorHomeClient ctx={ctx} />;
