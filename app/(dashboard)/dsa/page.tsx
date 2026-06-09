@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Plus, Code2, Sparkles, Brain, Building2, Target } from "lucide-react";
+import { Plus, Code2, Sparkles, Brain, Building2, Target, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { complete } from "@/lib/ai-router";
 import {
@@ -409,6 +409,14 @@ export default async function DSATrackPage() {
         >
           <Target className="w-3.5 h-3.5" />
           Pattern drill
+        </Link>
+        <span className="text-border">·</span>
+        <Link
+          href="/dsa/competition"
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-amber-400 transition-colors"
+        >
+          <Trophy className="w-3.5 h-3.5" />
+          Weekly competition
         </Link>
       </div>
     </div>
