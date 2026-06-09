@@ -287,17 +287,10 @@ export default async function DSATrackPage() {
   const totalProblems = solvedRes.data?.length ?? 0;
   const totalCards = countRes.count ?? 0;
 
-  // Union of patterns from pattern_mastery (attempted) + dsa_problems.patterns (logged)
-  // so the count is accurate even before pattern_mastery is populated.
-  const exploredPatternSet = new Set<string>(
-    patterns.filter((p) => p.attempts > 0).map((p) => p.pattern),
-  );
-  for (const prob of solvedRes.data ?? []) {
-    for (const pat of (prob.patterns as string[] | null) ?? []) {
-      exploredPatternSet.add(pat);
-    }
-  }
-  const exploredPatterns = exploredPatternSet.size;
+  // pattern_mastery is always updated when a problem is logged, so it's the ground truth.
+  // dsa_problems.patterns stores display names ("Two Pointers") while pattern_mastery uses
+  // canonical snake_case ("two_pointers") — mixing both in a Set doubles the count.
+  const exploredPatterns = patterns.filter((p) => p.attempts > 0).length;
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
