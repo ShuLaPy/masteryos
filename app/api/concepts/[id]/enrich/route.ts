@@ -39,53 +39,68 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
   const trimmedNotes = notes.trim();
 
-  // Generate flashcards from the student's own notes
-  const result = await generateJSON<{ cards: { front: string; back: string }[] }>(
-    "You are helping an AIML student build long-term memory of a concept they just studied. Extract core ideas from their notes and generate high-quality flashcards.",
-    `Concept: ${concept.title}
+  // Fetch existing cards to decide between first-time generation and incremental update
+  const { data: existingCards } = await supabase
+    .from("srs_cards")
+    .select("id, front")
+    .eq("source_type", "aiml_concept")
+    .eq("source_id", concept.id)
+    .eq("user_id", user.id);
+
+  const hasExistingCards = existingCards && existingCards.length > 0;
+
+  let cards: { front: string; back: string }[];
+
+  if (!hasExistingCards) {
+    // First time: generate 3-5 cards from the full notes
+    const result = await generateJSON<{ cards: { front: string; back: string }[] }>(
+      "You are helping an AIML student build long-term memory of a concept they just studied. Extract core ideas from their notes and generate high-quality flashcards.",
+      `Concept: ${concept.title}
 Student's notes:
 ${trimmedNotes}
 
 Generate 3-5 flashcard pairs from THESE notes specifically — use the student's own framing and examples where possible.
 Return ONLY valid JSON:
 { "cards": [{ "front": "string", "back": "string" }] }`
-  );
-
-  const cards = result.data?.cards;
-
-  if (!cards || cards.length < 3) {
-    return Response.json(
-      {
-        data: null,
-        error:
-          "Notes did not produce enough distinct cards — try adding more detail.",
-      },
-      { status: 422 }
     );
+
+    cards = result.data?.cards ?? [];
+
+    if (cards.length < 3) {
+      return Response.json(
+        { data: null, error: "Notes did not produce enough distinct cards — try adding more detail." },
+        { status: 422 }
+      );
+    }
+  } else {
+    // Incremental update: only generate cards for content not already covered
+    const coveredQuestions = existingCards.map((c) => `- ${c.front}`).join("\n");
+
+    const result = await generateJSON<{ cards: { front: string; back: string }[] }>(
+      "You are helping an AIML student build long-term memory of a concept they just studied. Your job is to identify content in their updated notes that is NOT yet covered by their existing flashcards, and generate new cards for that content only.",
+      `Concept: ${concept.title}
+
+Student's updated notes:
+${trimmedNotes}
+
+Questions already covered by existing flashcards (do NOT generate cards for these topics):
+${coveredQuestions}
+
+Generate 0-5 NEW flashcard pairs ONLY for content in the notes that has no existing card. Use the student's own framing and examples where possible.
+If all content is already covered, return an empty cards array.
+Return ONLY valid JSON:
+{ "cards": [{ "front": "string", "back": "string" }] }`
+    );
+
+    cards = result.data?.cards ?? [];
   }
 
   const now = new Date();
   const nowISO = now.toISOString();
 
-  // Count and delete existing seed cards for this concept
-  const { data: deleted, error: deleteError } = await supabase
-    .from("srs_cards")
-    .delete()
-    .eq("source_type", "aiml_concept")
-    .eq("source_id", concept.id)
-    .eq("user_id", user.id)
-    .select("id");
+  const cardsReplaced = 0;
 
-  if (deleteError) {
-    return Response.json(
-      { data: null, error: "Failed to replace existing cards" },
-      { status: 500 }
-    );
-  }
-
-  const cardsReplaced = deleted?.length ?? 0;
-
-  // Insert new cards built from the student's notes
+  // Insert only the newly generated cards — never delete cards that have FSRS progress
   const dbCards = cards.map((c) => ({
     user_id: user.id,
     card_type: "concept",
@@ -97,13 +112,15 @@ Return ONLY valid JSON:
     due: nowISO,
   }));
 
-  const { error: insertError } = await supabase.from("srs_cards").insert(dbCards);
+  if (dbCards.length > 0) {
+    const { error: insertError } = await supabase.from("srs_cards").insert(dbCards);
 
-  if (insertError) {
-    return Response.json(
-      { data: null, error: "Failed to save new cards" },
-      { status: 500 }
-    );
+    if (insertError) {
+      return Response.json(
+        { data: null, error: "Failed to save new cards" },
+        { status: 500 }
+      );
+    }
   }
 
   // Update concept with the enriched notes and promote card_status to 'learned'
@@ -130,7 +147,11 @@ Return ONLY valid JSON:
   });
 
   return Response.json({
-    data: { cardsReplaced, cardsCreated: dbCards.length },
+    data: {
+      cardsReplaced,
+      cardsCreated: dbCards.length,
+      existingPreserved: existingCards?.length ?? 0,
+    },
     error: null,
   });
 }

@@ -78,6 +78,7 @@ export default async function AIMLConceptPage({ params }: { params: Promise<{ id
             conceptId={concept.id}
             initialNotes={concept.notes}
             initialCardStatus={concept.card_status}
+            initialCardCount={conceptCards.length}
           />
         </div>
 

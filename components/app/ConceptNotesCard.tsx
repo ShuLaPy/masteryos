@@ -10,7 +10,7 @@ import remarkGfm from "remark-gfm";
 type CardStatus = "none" | "seeded" | "learned";
 
 interface EnrichResult {
-  data: { cardsReplaced: number; cardsCreated: number } | null;
+  data: { cardsReplaced: number; cardsCreated: number; existingPreserved: number } | null;
   error: string | null;
 }
 
@@ -27,10 +27,12 @@ export function ConceptNotesCard({
   conceptId,
   initialNotes,
   initialCardStatus,
+  initialCardCount = 0,
 }: {
   conceptId: string;
   initialNotes: string | null;
   initialCardStatus: string | null;
+  initialCardCount?: number;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<CardStatus>(
@@ -41,15 +43,29 @@ export function ConceptNotesCard({
   const [notes, setNotes] = useState<string | null>(initialNotes);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Track whether cards already exist so the submit button label is correct
+  const hasCards = status === "learned" || initialCardCount > 0;
 
   const mutation = useMutation({
     mutationFn: (next: string) => postEnrich(conceptId, next),
     onSuccess: (result) => {
       if (result.error || !result.data) return;
+      const { cardsCreated, existingPreserved } = result.data;
       setNotes(draft.trim());
       setStatus("learned");
       setEditing(false);
+      if (existingPreserved > 0) {
+        setSuccessMsg(
+          cardsCreated > 0
+            ? `${cardsCreated} new card${cardsCreated !== 1 ? "s" : ""} added, ${existingPreserved} existing card${existingPreserved !== 1 ? "s" : ""} preserved.`
+            : `No new content found — ${existingPreserved} existing card${existingPreserved !== 1 ? "s" : ""} preserved.`
+        );
+      } else {
+        setSuccessMsg(`${cardsCreated} card${cardsCreated !== 1 ? "s" : ""} generated.`);
+      }
       // Re-run the server component so the Generated Flashcards section
       // re-renders with the newly generated cards.
       router.refresh();
@@ -73,6 +89,7 @@ export function ConceptNotesCard({
   function startEditing() {
     setDraft(notes ?? "");
     mutation.reset();
+    setSuccessMsg(null);
     setEditing(true);
   }
 
@@ -179,8 +196,10 @@ export function ConceptNotesCard({
               {mutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Generating Cards…
+                  {hasCards ? "Updating Cards…" : "Generating Cards…"}
                 </>
+              ) : hasCards ? (
+                "Update Cards"
               ) : (
                 "Generate Cards"
               )}
@@ -195,12 +214,21 @@ export function ConceptNotesCard({
             </button>
           </div>
         </div>
-      ) : notes ? (
-        <div className="bridge-prose">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{notes}</ReactMarkdown>
-        </div>
       ) : (
-        <p className="text-sm text-muted-foreground">No notes provided for this concept.</p>
+        <>
+          {successMsg && (
+            <p className="text-xs font-medium mb-3 px-3 py-2 rounded-lg" style={{ color: "#10b981", backgroundColor: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.2)" }}>
+              {successMsg}
+            </p>
+          )}
+          {notes ? (
+            <div className="bridge-prose">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{notes}</ReactMarkdown>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No notes provided for this concept.</p>
+          )}
+        </>
       )}
     </div>
   );

@@ -36,7 +36,10 @@ import {
   type SrsCard,
 } from "@/lib/planning-engine";
 import { dbCardToFSRS, getRetrievability } from "@/lib/fsrs";
-import type { Database } from "@/types/database";
+import { estimateCardMinutes } from "@/lib/card-estimator";
+import { buildDsaZones, zpdDifficulty } from "@/lib/dsa-planner";
+import { weaknessFromMastery, type Difficulty } from "@/lib/pattern-rating";
+import type { Database, Tables } from "@/types/database";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -53,6 +56,8 @@ export interface PrereqStatus {
   /** Bridge & Runway priority score (higher = study sooner). */
   priority: number;
   cardCount: number;
+  /** Estimated minutes of focused effort to work this concept's cards. */
+  estimatedMinutes: number;
 }
 
 export interface UpcomingLectureIntel {
@@ -67,6 +72,8 @@ export interface UpcomingLectureIntel {
   /** Within the cold-start window (≤7 days) → prep is urgent. */
   imminent: boolean;
   prereqCount: number;
+  /** Estimated minutes still needed to prepare all non-strong prereqs. */
+  prepMinutesRemaining: number;
   prereqs: PrereqStatus[];
 }
 
@@ -94,12 +101,51 @@ export interface LectureIntel {
   topPriorities: TopPriorityAction[];
 }
 
+// ─── DSA recommendation types ────────────────────────────────────────────────
+
+/** A weak DSA pattern with its Glicko-2 rating and ZPD difficulty. */
+export interface WeakPattern {
+  pattern: string;
+  rating: number;
+  /** Weakness signal ∈ [0,1] (mastery gap or staleness). */
+  weakness: number;
+  /** Challenging-but-winnable difficulty for the next problem (ZPD). */
+  zpd: Difficulty;
+}
+
+/** A concrete ZPD-matched problem to suggest next. */
+export interface SuggestedProblem {
+  title: string;
+  difficulty: string;
+  /** The neglected/weak pattern this problem targets. */
+  pattern: string;
+  url: string | null;
+}
+
+export interface DsaRecommendation {
+  /** Patterns under-practiced vs their deserved share (portfolio drift). */
+  neglectedPatterns: string[];
+  overPracticedPatterns: string[];
+  /** 0–1; 1 = perfectly balanced practice across patterns. */
+  balanceScore: number;
+  /** Weakest patterns by Glicko-2 weakness signal (attempted patterns only). */
+  weakestPatterns: WeakPattern[];
+  /** ZPD-matched, neglected-biased problems to solve next. */
+  suggestedProblems: SuggestedProblem[];
+  /** Due re-solve ladder cards (spaced re-derivation of past problems). */
+  dueReSolveCount: number;
+  /** Due recognition-drill cards (pattern recognition reps). */
+  dueRecognitionDrillCount: number;
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 const DEFAULT_WEAKNESS_THRESHOLD = 0.85; // spec §3 / AGENTS.md
 /** How many upcoming un-attended lectures the mentor reasons about. */
 const MAX_UPCOMING = 3;
+/** Rough prep estimate for a prereq with no cards yet (will be cold-start seeded). */
+const COLD_START_PREP_MINUTES = 10;
 
 const CARD_COLUMNS =
   "id, source_id, source_type, due, stability, difficulty, elapsed_days, scheduled_days, reps, lapses, state, last_review";
@@ -303,6 +349,16 @@ export async function computeLectureIntelligence(
         centrality
       );
 
+      const estimatedMinutes =
+        conceptCards.length > 0
+          ? Math.round(
+              conceptCards.reduce(
+                (s, c) => s + estimateCardMinutes(c as Tables<"srs_cards">),
+                0
+              )
+            )
+          : COLD_START_PREP_MINUTES;
+
       return {
         conceptId,
         title: titleById.get(conceptId) ?? "Untitled concept",
@@ -310,6 +366,7 @@ export async function computeLectureIntelligence(
         retrievability: minR,
         priority,
         cardCount: conceptCards.length,
+        estimatedMinutes,
       };
     });
 
@@ -348,6 +405,9 @@ export async function computeLectureIntelligence(
         new Date(today)
       ),
       prereqCount: rawPrereqIds.length,
+      prepMinutesRemaining: prereqs
+        .filter((p) => p.status !== "strong")
+        .reduce((s, p) => s + p.estimatedMinutes, 0),
       prereqs: prereqs.sort((a, b) => b.priority - a.priority),
     };
   });
@@ -406,6 +466,63 @@ export async function computeLectureIntelligence(
 
   return {
     data: { upcoming, recentAttended, topPriorities },
+    error: null,
+  };
+}
+
+// ─── DSA recommendation ──────────────────────────────────────────────────────
+
+/**
+ * Compute the mentor's DSA recommendation: which patterns are weak/neglected and
+ * which concrete problem(s) to solve next. Reuses lib/dsa-planner's buildDsaZones
+ * (the canonical ZPD + Glicko-2 + portfolio-drift engine) so the mentor's advice
+ * matches the DSA plan exactly, and adds per-pattern Glicko-2 weakness for naming.
+ *
+ * buildDsaZones performs reads only (no writes), so calling it here is side-effect
+ * free. Returns { data: null } if DSA planning data can't be loaded.
+ */
+export async function computeDsaRecommendation(
+  supabase: Client,
+  userId: string
+): Promise<{ data: DsaRecommendation | null; error: string | null }> {
+  const [zonesRes, masteryRes] = await Promise.all([
+    buildDsaZones(supabase, userId),
+    supabase
+      .from("pattern_mastery")
+      .select("pattern, rating, rd")
+      .eq("user_id", userId),
+  ]);
+
+  if (zonesRes.error || !zonesRes.data) {
+    return { data: null, error: zonesRes.error ?? "No DSA data" };
+  }
+  const z = zonesRes.data;
+
+  const weakestPatterns: WeakPattern[] = (masteryRes.data ?? [])
+    .map((r) => ({
+      pattern: r.pattern,
+      rating: Math.round(r.rating),
+      weakness: weaknessFromMastery(r.rating, r.rd),
+      zpd: zpdDifficulty(r.rating),
+    }))
+    .sort((a, b) => b.weakness - a.weakness)
+    .slice(0, 3);
+
+  return {
+    data: {
+      neglectedPatterns: z.coach.neglected,
+      overPracticedPatterns: z.coach.over_practiced,
+      balanceScore: z.coach.balance_score,
+      weakestPatterns,
+      suggestedProblems: z.zones.new_problem.items.map((p) => ({
+        title: p.title,
+        difficulty: p.difficulty,
+        pattern: p.target_pattern,
+        url: p.leetcode_url ?? null,
+      })),
+      dueReSolveCount: z.zones.re_solve.items.length,
+      dueRecognitionDrillCount: z.zones.recognition_drill.items.length,
+    },
     error: null,
   };
 }

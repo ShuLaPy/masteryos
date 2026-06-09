@@ -3,7 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { streamText, generateText } from "@/lib/openai";
 import {
   computeLectureIntelligence,
+  computeDsaRecommendation,
   type LectureIntel,
+  type DsaRecommendation,
   type PrereqStatusKind,
 } from "@/lib/mentor-context";
 
@@ -11,30 +13,42 @@ import {
 // promises "GPT-4o"); other AI features stay on the cheaper default.
 const MENTOR_MODEL = "gpt-4o";
 
-const MENTOR_SYSTEM = `You are the user's personal AI learning mentor for DSA and AIML mastery — the smartest, most context-aware coach on the platform. You are strict, data-driven, and genuinely encouraging, like an elite coach who knows exactly where the user stands.
+const MENTOR_SYSTEM = `You are the user's personal AI learning mentor for DSA and AIML mastery — the smartest, most context-aware coach on the platform. You are strict, data-driven, and genuinely encouraging, like an elite coach who plans the user's WEEK, not just their day.
 
-You are given the user's REAL learning data in each message: SRS review stats, weakest concepts, DSA pattern history, AND an authoritative, server-computed view of their lecture schedule with per-prerequisite readiness. Treat the lecture/readiness block as ground truth — it is computed fresh server-side and is never wrong.
+You are given the user's REAL learning data in each message: SRS review stats, weakest concepts, DSA Glicko-2 ratings with neglected patterns and concrete ZPD-matched problem picks, AND an authoritative server-computed view of the lecture schedule with per-prerequisite readiness, effort estimates, and days remaining. Treat every data block as ground truth — it is computed fresh server-side.
 
-## How to prioritize "what should I focus on today" (strict order)
-Rank the day's work by leverage, not by what's easiest:
-1. **Imminent lecture prep** — if an upcoming lecture is within ~7 days and any of its prerequisites are UNSTUDIED or WEAK, this is almost always #1. An unstudied prerequisite for a lecture in a few days is an emergency: the user will be lost in class. Call it out by name with the lecture and days remaining.
-2. **Overdue SRS reviews** — if cards are due, clearing them protects everything already learned. High due counts are urgent.
-3. **Weak concepts** — low-mastery AIML areas that aren't already covered above.
-4. **DSA cadence** — if it's been >2 days since the last problem, or a pattern is neglected, prescribe a specific pattern to practice.
-Always lead with the single most important action. Do not bury the lecture prep under generic review advice.
+## Core philosophy: DISTRIBUTE the load, don't cram (most important)
+You are a planner, not a to-do dumper. When a lecture is several days away with weak/unstudied prerequisites, NEVER tell the user to do it all today. Spread the work across the days that remain:
+- Spaced repetition only builds durable retention through MULTIPLE exposures across MULTIPLE days. Cramming two concepts into one day is wasted effort — the second won't stick.
+- Size the work from the data: each prereq carries an estimatedMinutes effort and a current status/retention. The day has a budget (the user's daily goal minutes) shared across prereq study + SRS reviews + one DSA problem — only schedule what genuinely fits.
+- Sequence concepts: start the highest-priority prereq today, REINFORCE it tomorrow, and only then advance to the next — gated on performance. State the checkpoint explicitly, e.g. "if its retention looks solid tomorrow, move to <next>; if not, give it one more day."
+- Every day must still leave room for due SRS cards and one DSA problem.
+
+## The default daily structure (keep this order)
+1. Today's scheduled prereq concept (the one you paced for today) — study or refresh it.
+2. Clear today's due SRS cards — this protects everything already learned.
+3. Solve ONE DSA problem — choose from the suggested ZPD problems (challenging-but-winnable for the user's Glicko-2 rating), biased toward a neglected/weak pattern. Name the exact problem, its pattern, its difficulty, and one sentence of why.
+
+## When the user asks "what should I focus on today"
+Open with a one-line headline of today's single focus, THEN the structured day plan, THEN the multi-day pacing to the lecture. Importance order: imminent lecture prep (paced across days) > due SRS reviews > weak concepts > DSA cadence.
+
+## DSA selection rules
+- Pick difficulty by the user's ZPD for the target pattern — never far above or below their Glicko-2 rating.
+- Prefer neglected/under-practiced patterns; if the user is already balanced and strong, say so and suggest a maintenance problem.
+- If concrete problems are provided, recommend one by name; otherwise prescribe a problem in the top neglected/weak pattern at its ZPD difficulty.
 
 ## Hard rules
-- Be specific. Reference actual concept names, lecture titles, pattern names, real numbers, days-until, and readiness/retention percentages from the data. Never be generic.
-- Never say a prerequisite or concept is fine if the data says it is UNSTUDIED or WEAK. If readiness is low, say so plainly and explain the consequence.
-- If a readiness number looks high (e.g. weekly retention) but prerequisites are untouched, clarify the distinction: weekly retention only reflects cards already reviewed, not untouched prerequisites.
-- No empty praise — every encouragement must be backed by a specific number (streak, success rate, problems solved).
-- Keep it tight: a focused answer, not an essay.
+- Be specific: real concept/lecture/pattern names, real numbers, days-until, estimated minutes, readiness/retention %, Glicko-2 ratings.
+- Never call a prerequisite or concept fine if the data says it is UNSTUDIED or WEAK.
+- If weekly retention looks high but prerequisites are untouched, clarify: weekly retention only reflects cards already reviewed, not untouched prerequisites.
+- No empty praise — back every encouragement with a specific number.
 
 ## Output format (ALWAYS use this structured markdown)
-- Open with one bold headline sentence naming the #1 focus (e.g. **Your #1 priority today: study Backpropagation before Sunday's lecture.**).
-- Then a \`### Today's priorities\` section with a NUMBERED list, each item a bold lead-in followed by the specific action and the data that justifies it.
-- Optionally add a short \`### Why this order\` or \`### Don't forget\` section only if it adds real value.
-- Use **bold** for concept/lecture/pattern names and key numbers. Use bullet/numbered lists generously. Keep paragraphs to 1-2 sentences. Do NOT use h1/h2 — only \`###\` for section titles.`;
+- One bold headline sentence naming today's focus.
+- A \`### Today\` section: a NUMBERED, time-boxed list following the daily structure (e.g. "1. **Backpropagation** (~15 min) — refresh the chain-rule cards", "2. **SRS reviews** — clear your N due cards", "3. **DSA: Two Sum** (Easy · Hashing) — ...").
+- A \`### Plan to <lecture> (<N> days)\` section: a short day-by-day pacing of the remaining prerequisites with performance checkpoints. Include this whenever a lecture still has prep remaining.
+- Optionally a one-line \`### Why\` for rationale.
+- Use **bold** for names and key numbers, use lists generously, keep paragraphs to 1-2 sentences. Use ONLY \`###\` headings (never h1/h2).`;
 
 // ─── Context string builders ──────────────────────────────────────────────────
 
@@ -58,15 +72,6 @@ function buildContextString(ctx: Record<string, unknown>): string {
         .join(", ")
     : "none logged yet";
 
-  const patterns = ctx.dsaPatterns as Record<string, number> | undefined;
-  const patternStr =
-    patterns && Object.keys(patterns).length > 0
-      ? Object.entries(patterns)
-          .sort((a, b) => b[1] - a[1])
-          .map(([p, count]) => `${p}: ${count}`)
-          .join(", ")
-      : "no problems logged this week";
-
   const stats = ctx.reviewStats as
     | {
         totalCards: number;
@@ -82,7 +87,7 @@ function buildContextString(ctx: Record<string, unknown>): string {
 User context:
 - Name: ${ctx.displayName}
 - Streak: ${ctx.streakCount} days
-- Daily goal: ${ctx.goalMinutes} minutes/day
+- Daily goal (total time budget today): ${ctx.goalMinutes} minutes/day
 - Today's completion: ${ctx.completionPct ?? 0}%
 
 SRS Review Stats:
@@ -96,10 +101,9 @@ SRS Review Stats:
 AIML Concepts — Weakest areas:
 - ${weakestConceptsStr}
 
-DSA (last 7 days):
-- Problems solved: ${ctx.dsaProblemCount7d ?? 0}
+DSA recency:
 - Days since last solve: ${daysSinceDSA !== null ? daysSinceDSA : "never"}
-- Pattern distribution: ${patternStr}`.trim();
+- Problems solved last 7 days: ${ctx.dsaProblemCount7d ?? 0}`.trim();
 }
 
 const STATUS_LABEL: Record<PrereqStatusKind, string> = {
@@ -113,12 +117,12 @@ function pct(value: number): string {
 }
 
 /**
- * Render the authoritative lecture intelligence into the mentor's context. This
- * is what lets the mentor reason about upcoming lectures and untouched prereqs.
+ * Render the authoritative lecture intelligence into the mentor's context, with
+ * per-prereq effort estimates and days-remaining so the model can PACE the work.
  */
 function buildLectureContextString(intel: LectureIntel): string {
   const lines: string[] = [
-    "LECTURE SCHEDULE & PREREQUISITE READINESS (authoritative — computed fresh server-side from FSRS state):",
+    "LECTURE SCHEDULE & PREREQUISITE READINESS (authoritative — computed fresh server-side from FSRS state). Use estimatedMinutes + days-to-prepare to PACE study across days, not cram:",
   ];
 
   if (intel.upcoming.length === 0) {
@@ -140,7 +144,7 @@ function buildLectureContextString(intel: LectureIntel): string {
           lec.prereqCount === 0
             ? "no prerequisites"
             : `${Math.round(lec.coverage * lec.prereqCount)}/${lec.prereqCount} prereqs studied`
-        }`
+        } · Prep remaining: ~${lec.prepMinutesRemaining} min · Days to prepare: ${Math.max(lec.daysUntil, 0)}`
       );
       if (lec.prereqs.length > 0) {
         lines.push("   Prerequisites (highest priority first):");
@@ -148,7 +152,7 @@ function buildLectureContextString(intel: LectureIntel): string {
           const retention =
             p.status === "unstudied" ? "" : ` (retention ${pct(p.retrievability)})`;
           lines.push(
-            `     - ${p.title}: ${STATUS_LABEL[p.status]}${retention}, priority ${p.priority.toFixed(2)}`
+            `     - ${p.title}: ${STATUS_LABEL[p.status]}${retention}, ~${p.estimatedMinutes} min effort, priority ${p.priority.toFixed(2)}`
           );
         }
       }
@@ -167,7 +171,7 @@ function buildLectureContextString(intel: LectureIntel): string {
   }
 
   if (intel.topPriorities.length > 0) {
-    lines.push("\nHIGHEST-PRIORITY PREP ACTIONS (ranked by Bridge & Runway priority score):");
+    lines.push("\nHIGHEST-PRIORITY PREP ACTIONS (ranked by Bridge & Runway priority score — pace these across the days available, don't do all at once):");
     intel.topPriorities.forEach((a, i) => {
       const when =
         a.daysUntil === 0
@@ -188,6 +192,45 @@ function buildLectureContextString(intel: LectureIntel): string {
   return lines.join("\n");
 }
 
+/**
+ * Render the authoritative DSA recommendation (Glicko-2 weakness + ZPD problem
+ * picks + portfolio drift) so the mentor names a specific, well-calibrated problem.
+ */
+function buildDsaContextString(dsa: DsaRecommendation): string {
+  const lines: string[] = [
+    "DSA PRACTICE (authoritative — Glicko-2 skill ratings, ZPD difficulty, portfolio drift):",
+    `- Practice balance: ${pct(dsa.balanceScore)} (100% = evenly spread across patterns)`,
+    `- Neglected patterns (under-practiced): ${dsa.neglectedPatterns.length ? dsa.neglectedPatterns.join(", ") : "none"}`,
+    `- Over-practiced patterns: ${dsa.overPracticedPatterns.length ? dsa.overPracticedPatterns.join(", ") : "none"}`,
+  ];
+
+  if (dsa.weakestPatterns.length > 0) {
+    lines.push("- Weakest patterns (Glicko-2 rating, recommended ZPD difficulty):");
+    for (const w of dsa.weakestPatterns) {
+      lines.push(`    · ${w.pattern}: rating ${w.rating}, ZPD ${w.zpd}`);
+    }
+  }
+
+  lines.push(
+    `- Due re-solve ladder cards: ${dsa.dueReSolveCount} · Due recognition drills: ${dsa.dueRecognitionDrillCount}`
+  );
+
+  if (dsa.suggestedProblems.length > 0) {
+    lines.push("- Suggested next problems (ZPD-matched, biased to neglected patterns) — recommend ONE by name:");
+    dsa.suggestedProblems.forEach((p, i) => {
+      lines.push(
+        `    ${i + 1}. "${p.title}" (${p.difficulty}, pattern: ${p.pattern})${p.url ? ` — ${p.url}` : ""}`
+      );
+    });
+  } else {
+    lines.push(
+      "- No specific problem in the bank matched — prescribe a problem in the top neglected/weak pattern at its ZPD difficulty."
+    );
+  }
+
+  return lines.join("\n");
+}
+
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
@@ -200,21 +243,24 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const { type, ctx, messages } = body;
 
-  // Re-derive lecture intelligence server-side so the AI always reasons over
-  // fresh, untampered data — never what the browser happened to send.
-  const { data: lectureIntel } = await computeLectureIntelligence(
-    supabase,
-    user.id
-  );
-  const lectureContext = lectureIntel
-    ? "\n\n" + buildLectureContextString(lectureIntel)
+  // Re-derive lecture intelligence + DSA recommendation server-side so the AI
+  // always reasons over fresh, untampered data — never what the browser sent.
+  const [lectureRes, dsaRes] = await Promise.all([
+    computeLectureIntelligence(supabase, user.id),
+    computeDsaRecommendation(supabase, user.id),
+  ]);
+  const lectureContext = lectureRes.data
+    ? "\n\n" + buildLectureContextString(lectureRes.data)
+    : "";
+  const dsaContext = dsaRes.data
+    ? "\n\n" + buildDsaContextString(dsaRes.data)
     : "";
 
   if (type === "greeting") {
-    const contextStr = buildContextString(ctx) + lectureContext;
-    const userMsg = `Generate a concise, structured greeting for this learner based on their current data. Lead with their single most important focus for today (prioritize imminent lecture prep with untouched prerequisites). Keep it to a bold headline plus at most 3 short bullet points.\n\n${contextStr}`;
+    const contextStr = buildContextString(ctx) + lectureContext + dsaContext;
+    const userMsg = `Generate a concise, structured greeting for this learner based on their current data. Lead with their single most important focus for today, and if an upcoming lecture has untouched prerequisites, frame it as a paced plan (not "do it all today"). Keep it to a bold headline plus at most 3 short bullet points.\n\n${contextStr}`;
 
-    const { data } = await generateText(MENTOR_SYSTEM, userMsg, 400, MENTOR_MODEL);
+    const { data } = await generateText(MENTOR_SYSTEM, userMsg, 450, MENTOR_MODEL);
 
     // Cache in daily_plans table
     if (data) {
@@ -233,7 +279,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (type === "chat") {
-    const contextStr = buildContextString(ctx) + lectureContext;
+    const contextStr = buildContextString(ctx) + lectureContext + dsaContext;
     const enrichedSystem = MENTOR_SYSTEM + "\n\n" + contextStr;
 
     const encoder = new TextEncoder();
@@ -243,7 +289,7 @@ export async function POST(request: NextRequest) {
           for await (const chunk of streamText(
             enrichedSystem,
             messages,
-            800,
+            1100,
             MENTOR_MODEL
           )) {
             controller.enqueue(encoder.encode(chunk));
