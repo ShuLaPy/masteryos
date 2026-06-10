@@ -11,6 +11,7 @@ import {
   Cpu,
   Code2,
   FlaskConical,
+  MessageSquare,
   BarChart3,
   CalendarCheck,
   CalendarClock,
@@ -53,6 +54,12 @@ const navItems = [
     href: "/feynman",
     icon: FlaskConical,
     description: "Teach to master",
+  },
+  {
+    label: "Interview",
+    href: "/interview",
+    icon: MessageSquare,
+    description: "Weekly mock interview",
   },
   {
     label: "Analytics",

@@ -243,6 +243,59 @@ export type Database = {
           },
         ]
       }
+      interview_sessions: {
+        Row: {
+          created_at: string
+          current_slot: number
+          ended_at: string | null
+          grades: Json
+          id: string
+          overall_score: number | null
+          question_plan: Json
+          started_at: string
+          status: string
+          transcript: Json
+          user_id: string
+          week_start_date: string
+        }
+        Insert: {
+          created_at?: string
+          current_slot?: number
+          ended_at?: string | null
+          grades?: Json
+          id?: string
+          overall_score?: number | null
+          question_plan: Json
+          started_at?: string
+          status?: string
+          transcript?: Json
+          user_id: string
+          week_start_date: string
+        }
+        Update: {
+          created_at?: string
+          current_slot?: number
+          ended_at?: string | null
+          grades?: Json
+          id?: string
+          overall_score?: number | null
+          question_plan?: Json
+          started_at?: string
+          status?: string
+          transcript?: Json
+          user_id?: string
+          week_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lecture_schedules: {
         Row: {
           bridge_cache: Json | null
