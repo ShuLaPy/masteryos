@@ -8,11 +8,19 @@ interface DifficultyCeiling {
 
 export interface WeeklySummary {
   avg_rating: number;
+  /** Global skill level: beginner / intermediate / advanced / calibrating. */
+  level?: string;
   breadth: number;
   difficulty_ceiling: DifficultyCeiling;
   median_time_to_insight_seconds: number | null;
   balance_score: number;
   recognition_accuracy_pct: number | null;
+}
+
+function levelLabel(level: string | undefined): string {
+  if (!level) return "weighted across patterns";
+  if (level === "calibrating") return "calibrating…";
+  return `${level[0].toUpperCase()}${level.slice(1)} level`;
 }
 
 function formatTime(seconds: number | null): string {
@@ -55,7 +63,7 @@ export default function WeeklySummaryStrip({ summary }: { summary: WeeklySummary
           >
             {summary.avg_rating}
           </p>
-          <p className="text-xs text-muted-foreground mt-0.5">across 25 patterns</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{levelLabel(summary.level)}</p>
         </div>
 
         <div className="glass rounded-xl p-4">

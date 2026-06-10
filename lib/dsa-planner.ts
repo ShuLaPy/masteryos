@@ -26,6 +26,19 @@ import {
   balanceScore,
   type MasterySnapshot,
 } from "@/lib/dsa-coach";
+import {
+  zpdTarget,
+  problemSignal,
+  scoreProblemFit,
+  DEFAULT_TARGET_SUCCESS,
+  type ZpdTarget,
+} from "@/lib/zpd";
+import {
+  computeGlobalSkill,
+  effectiveRating,
+  type GlobalSkill,
+  type SkillLevelState,
+} from "@/lib/skill-level";
 import type { Database } from "@/types/database";
 
 // ─── types ───────────────────────────────────────────────────────────────────
@@ -58,6 +71,13 @@ const LADDER_SOURCE_TYPE = "dsa_ladder";
 
 const DEFAULT_RATING = 1500;
 const DEFAULT_RD = 350;
+
+/**
+ * Opponent rd (Glicko scale) used when a curated per-problem Elo is the
+ * opponent. Low = a confident opponent, so the match moves the learner's rating
+ * decisively (vs the default RD_MAX for the coarse categorical centre).
+ */
+const PROBLEM_ELO_OPPONENT_RD = 60;
 const DEFAULT_VOLATILITY = 0.06;
 
 // Any rating other than Again means the user completed the full re-solve.
@@ -257,10 +277,23 @@ export async function logAttemptAndUpdateMastery(
     timeSeconds?: number;
     usedHints?: boolean;
     patternIdentified?: string;
+    /**
+     * Curated per-problem Elo (problem_bank.elo_rating). When present it is used
+     * as the Glicko opponent rating — a far sharper signal than the coarse
+     * categorical centre — and treated as a confident opponent (low opponent rd)
+     * so the rating moves decisively. Falls back to the categorical centre
+     * (1300/1550/1800) when absent, preserving the legacy behaviour exactly.
+     */
+    problemElo?: number;
   },
 ): Promise<{ data: { updated: PatternUpdate[] } | null; error: string | null }> {
   const score = outcomeToScore(outcome);
-  const opponentRating = difficultyToRating(difficulty);
+  const hasProblemElo =
+    typeof opts?.problemElo === "number" && Number.isFinite(opts.problemElo);
+  const opponentRating = hasProblemElo
+    ? (opts!.problemElo as number)
+    : difficultyToRating(difficulty);
+  const opponentRd = hasProblemElo ? PROBLEM_ELO_OPPONENT_RD : DEFAULT_RD;
   const now = new Date().toISOString();
 
   // Insert attempt record.
@@ -311,6 +344,7 @@ export async function logAttemptAndUpdateMastery(
           { rating: ratingBefore, rd: inflatedRd, volatility },
           opponentRating,
           score,
+          opponentRd,
         );
 
         const { error: upsertErr } = await supabase
@@ -411,6 +445,8 @@ export interface DsaZoneOutput {
     new_problem: { allocated_minutes: number; items: NewProblemItem[] };
   };
   coach: DsaCoachBlock;
+  /** Global DSA skill (level, weighted rating) — drives the ZPD difficulty. */
+  global_skill: GlobalSkill;
   /** Drill and re-solve cards that overflowed the minute budget. */
   deferred: Array<DrillItem | ResolveLadderItem>;
 }
@@ -438,17 +474,16 @@ const NEW_PROBLEM_MINUTES: Record<string, number> = {
 // ─── Zone-planner pure helpers ─────────────────────────────────────────────────
 
 /**
- * Pick the ZPD difficulty for a pattern given its current Glicko-2 rating.
+ * Pick the ZPD difficulty BAND for a pattern given its current Glicko-2 rating.
  *
- * Opponent ratings: easy=1300, medium=1550, hard=1800 (step=250).
- * Target = rating + 0.5×step = rating + 125 (challenging but winnable).
- * Boundaries at the midpoints between opponent ratings: <1425→easy, 1425–1674→medium, ≥1675→hard.
+ * Thin backward-compatible shim over the continuous model in lib/zpd.ts. It runs
+ * in `legacy` mode so it reproduces the historical `rating + 125` boundaries
+ * (<1425→easy, 1425–1674→medium, ≥1675→hard) — display surfaces that show a
+ * single band stay stable. SELECTION sites should call `zpdTarget` /
+ * `scoreProblemFit` directly to get the rd-adaptive, success-targeted behaviour.
  */
 export function zpdDifficulty(rating: number): Difficulty {
-  const target = rating + 125;
-  if (target < 1425) return "easy";
-  if (target < 1675) return "medium";
-  return "hard";
+  return zpdTarget({ rating, rd: 50 }, { legacy: true }).band;
 }
 
 function resolveTimeZone(tz: unknown): string {
@@ -459,6 +494,28 @@ function resolveTimeZone(tz: unknown): string {
     } catch { /* fall through to UTC */ }
   }
   return "UTC";
+}
+
+/**
+ * Resolve the per-user growth target success (the "85% rule" knob) from
+ * users.settings.zpd_target_success. Falls back to the default and rejects
+ * out-of-range values, mirroring how weakness_threshold is validated elsewhere.
+ */
+function resolveTargetSuccess(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0.5 && value < 0.95) {
+    return value;
+  }
+  return DEFAULT_TARGET_SUCCESS;
+}
+
+/** Read a persisted skill-level label (users.settings.skill_level_cache). */
+function resolvePreviousLevel(value: unknown): SkillLevelState | undefined {
+  return value === "beginner" ||
+    value === "intermediate" ||
+    value === "advanced" ||
+    value === "calibrating"
+    ? value
+    : undefined;
 }
 
 function resolveDsaPrefs(value: unknown): DsaZonePreferences {
@@ -631,7 +688,7 @@ export async function buildDsaZones(
   ] = await Promise.all([
     supabase
       .from("pattern_mastery")
-      .select("pattern, rating, rd")
+      .select("pattern, rating, rd, attempts")
       .eq("user_id", userId),
     supabase
       .from("problem_attempts")
@@ -656,7 +713,9 @@ export async function buildDsaZones(
       .eq("user_id", userId),
     supabase
       .from("problem_bank")
-      .select("id, slug, title, difficulty, patterns, leetcode_url"),
+      .select(
+        "id, slug, title, difficulty, patterns, leetcode_url, elo_rating, acceptance_rate",
+      ),
   ]);
 
   const fetchErr =
@@ -681,6 +740,24 @@ export async function buildDsaZones(
 
   const defaultMastery = (p: CanonicalPattern): MasterySnapshot =>
     masteryByPattern.get(p) ?? { rating: DEFAULT_RATING, rd: DEFAULT_RD };
+
+  // Global skill + per-user target success drive the rd-adaptive ZPD target.
+  // Shrinkage toward the global rating (empirical Bayes) is applied ONLY to the
+  // difficulty target, never to weakness/priority/coach — so neglected-pattern
+  // detection is unchanged while a strong learner still gets challenging
+  // problems on a brand-new pattern.
+  const globalSkill = computeGlobalSkill(masteryRes.data ?? [], {
+    previousLevel: resolvePreviousLevel(settings.skill_level_cache),
+  });
+  const baseTargetSuccess = resolveTargetSuccess(settings.zpd_target_success);
+  const zpdTargetFor = (p: CanonicalPattern): ZpdTarget => {
+    const eff = effectiveRating(
+      defaultMastery(p),
+      globalSkill.globalRating,
+      globalSkill.globalRd,
+    );
+    return zpdTarget(eff, { baseTargetSuccess });
+  };
 
   const problemById = new Map(
     (dsaProblemsRes.data ?? []).map((p) => [p.id, p]),
@@ -773,12 +850,17 @@ export async function buildDsaZones(
 
   const targetPatternSet = new Set<string>(targetPatterns);
 
-  const zpdByPattern = new Map<string, Difficulty>(
-    targetPatterns.map((p) => [p, zpdDifficulty(defaultMastery(p).rating)]),
+  // ZPD difficulty target per pattern (rd-adaptive, success-targeted, with
+  // empirical-Bayes transfer for cold patterns).
+  const zpdTargetByPattern = new Map<string, ZpdTarget>(
+    targetPatterns.map((p) => [p, zpdTargetFor(p)]),
   );
 
   type ScoredBankItem = NewProblemItem & { _overlap: number; _score: number };
 
+  // Continuous fit replaces the brittle `difficulty === bucket` equality filter:
+  // a problem is scored by patternPriority × how close its difficulty (real Elo
+  // → acceptance pseudo-Elo → categorical) sits to the pattern's ZPD target.
   const scoredBank: ScoredBankItem[] = (bankRes.data ?? [])
     .flatMap((b): ScoredBankItem[] => {
       if (b.leetcode_url && userProblemUrls.has(b.leetcode_url)) return [];
@@ -788,16 +870,18 @@ export async function buildDsaZones(
       );
       if (overlapPatterns.length === 0) return [];
 
-      const diffMatch = overlapPatterns.some((p) => zpdByPattern.get(p) === b.difficulty);
-      if (!diffMatch) return [];
+      const signal = problemSignal(b);
 
       let bestPat = overlapPatterns[0];
-      let bestPp = 0;
+      let bestScore = 0;
       for (const p of overlapPatterns) {
         const cp = p as CanonicalPattern;
         const gap = coverageGapForPattern(cp, target, actual);
         const pp = patternPriority(defaultMastery(cp), cp, gap);
-        if (pp > bestPp) { bestPp = pp; bestPat = p; }
+        const tgt = zpdTargetByPattern.get(p);
+        const fit = tgt ? scoreProblemFit(signal, tgt) : 0;
+        const combined = pp * fit;
+        if (combined > bestScore) { bestScore = combined; bestPat = p; }
       }
 
       return [
@@ -811,11 +895,11 @@ export async function buildDsaZones(
           target_pattern: bestPat,
           est_minutes: NEW_PROBLEM_MINUTES[b.difficulty] ?? 45,
           _overlap: overlapPatterns.length,
-          _score: bestPp,
+          _score: bestScore,
         },
       ];
     })
-    .sort((a, b) => b._overlap - a._overlap || b._score - a._score);
+    .sort((a, b) => b._score - a._score || b._overlap - a._overlap);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const newProblemItems: NewProblemItem[] = scoredBank
@@ -862,6 +946,7 @@ export async function buildDsaZones(
         },
       },
       coach: coachBlock,
+      global_skill: globalSkill,
       deferred: [...drillFill.deferred, ...resolveFill.deferred],
     },
     error: null,

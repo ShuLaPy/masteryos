@@ -7,7 +7,17 @@ import {
   balanceScore,
   type MasterySnapshot,
 } from "@/lib/dsa-coach";
-import { zpdDifficulty } from "@/lib/dsa-planner";
+import {
+  zpdTarget,
+  problemSignal,
+  scoreProblemFit,
+  DEFAULT_TARGET_SUCCESS,
+} from "@/lib/zpd";
+import {
+  computeGlobalSkill,
+  effectiveRating,
+  type SkillLevelState,
+} from "@/lib/skill-level";
 import { weaknessFromMastery } from "@/lib/pattern-rating";
 import { CANONICAL_PATTERNS, type CanonicalPattern } from "@/lib/pattern-map";
 
@@ -33,7 +43,7 @@ export async function GET() {
   const cutoff14d = new Date(Date.now() - 14 * 86_400_000).toISOString();
   const cutoff12w = new Date(Date.now() - 84 * 86_400_000).toISOString();
 
-  const [masteryRes, attemptsCoachRes, attemptsTrajectoryRes, bankRes, solvedRes, allAttemptsRes] =
+  const [masteryRes, attemptsCoachRes, attemptsTrajectoryRes, bankRes, solvedRes, allAttemptsRes, settingsRes] =
     await Promise.all([
       supabase
         .from("pattern_mastery")
@@ -52,12 +62,15 @@ export async function GET() {
         .order("created_at", { ascending: true }),
       supabase
         .from("problem_bank")
-        .select("id, slug, title, difficulty, patterns, leetcode_url"),
+        .select(
+          "id, slug, title, difficulty, patterns, leetcode_url, elo_rating, acceptance_rate",
+        ),
       supabase.from("dsa_problems").select("url").eq("user_id", user.id),
       supabase
         .from("problem_attempts")
         .select("patterns, difficulty, outcome_score, time_seconds, pattern_identified, created_at")
         .eq("user_id", user.id),
+      supabase.from("users").select("settings").eq("id", user.id).single(),
     ]);
 
   const fetchErr =
@@ -86,6 +99,30 @@ export async function GET() {
     (masteryRes.data ?? []).map((r) => [r.pattern, r.attempts]),
   );
 
+  // ── Global skill + ZPD target knobs ─────────────────────────────────────────
+  const settings = (settingsRes.data?.settings ?? {}) as Record<string, unknown>;
+  const baseTargetSuccess =
+    typeof settings.zpd_target_success === "number" &&
+    Number.isFinite(settings.zpd_target_success) &&
+    settings.zpd_target_success > 0.5 &&
+    settings.zpd_target_success < 0.95
+      ? settings.zpd_target_success
+      : DEFAULT_TARGET_SUCCESS;
+  const previousLevel =
+    settings.skill_level_cache === "beginner" ||
+    settings.skill_level_cache === "intermediate" ||
+    settings.skill_level_cache === "advanced" ||
+    settings.skill_level_cache === "calibrating"
+      ? (settings.skill_level_cache as SkillLevelState)
+      : undefined;
+  const globalSkill = computeGlobalSkill(masteryRes.data ?? [], { previousLevel });
+
+  const zpdBand = (m: MasterySnapshot): string =>
+    zpdTarget(
+      effectiveRating(m, globalSkill.globalRating, globalSkill.globalRd),
+      { baseTargetSuccess },
+    ).band;
+
   const patterns = CANONICAL_PATTERNS.map((p) => {
     const m = masteryByPattern.get(p) ?? { rating: DEFAULT_RATING, rd: DEFAULT_RD };
     return {
@@ -94,7 +131,7 @@ export async function GET() {
       rd: m.rd,
       attempts: attemptsCountByPattern.get(p) ?? 0,
       weakness: weaknessFromMastery(m.rating, m.rd),
-      zpd_difficulty: zpdDifficulty(m.rating),
+      zpd_difficulty: zpdBand(m),
     };
   });
 
@@ -158,25 +195,34 @@ export async function GET() {
 
   const suggestions: Suggestion[] = [];
   const usedSlugs = new Set<string>();
+  type BankRow = NonNullable<typeof bankRes.data>[number];
   for (const targetPattern of topPatterns) {
-    const zpd = zpdDifficulty(
-      masteryByPattern.get(targetPattern)?.rating ?? DEFAULT_RATING,
+    const m =
+      masteryByPattern.get(targetPattern) ?? { rating: DEFAULT_RATING, rd: DEFAULT_RD };
+    const target = zpdTarget(
+      effectiveRating(m, globalSkill.globalRating, globalSkill.globalRd),
+      { baseTargetSuccess },
     );
-    const match = (bankRes.data ?? []).find(
-      (b) =>
-        !usedSlugs.has(b.slug) &&
-        !(b.leetcode_url && solvedUrls.has(b.leetcode_url)) &&
-        b.difficulty === zpd &&
-        ((b.patterns as string[]) ?? []).includes(targetPattern),
-    );
-    if (match) {
-      usedSlugs.add(match.slug);
+    let best: BankRow | null = null;
+    let bestFit = 0;
+    for (const b of bankRes.data ?? []) {
+      if (usedSlugs.has(b.slug)) continue;
+      if (b.leetcode_url && solvedUrls.has(b.leetcode_url)) continue;
+      if (!((b.patterns as string[]) ?? []).includes(targetPattern)) continue;
+      const fit = scoreProblemFit(problemSignal(b), target);
+      if (fit > bestFit) {
+        bestFit = fit;
+        best = b;
+      }
+    }
+    if (best) {
+      usedSlugs.add(best.slug);
       suggestions.push({
-        slug: match.slug,
-        title: match.title,
-        difficulty: match.difficulty,
-        url: match.leetcode_url,
-        patterns: (match.patterns as string[]) ?? [],
+        slug: best.slug,
+        title: best.title,
+        difficulty: best.difficulty,
+        url: best.leetcode_url,
+        patterns: (best.patterns as string[]) ?? [],
         target_pattern: targetPattern,
       });
     }
@@ -227,15 +273,10 @@ export async function GET() {
     "Keep grinding — consistent practice across all 25 patterns builds lasting mastery.";
 
   // ── 6. Weekly summary metrics (§14) ───────────────────────────────────────
-  const MASTERY_RATING_THRESHOLD = 1650;
-  const MASTERY_RD_THRESHOLD = 200;
-
-  const avgRating = Math.round(
-    patterns.reduce((s, p) => s + p.rating, 0) / patterns.length,
-  );
-  const breadth = patterns.filter(
-    (p) => p.rating >= MASTERY_RATING_THRESHOLD && p.rd <= MASTERY_RD_THRESHOLD,
-  ).length;
+  // Precision-weighted global rating + confident-mastered breadth replace the
+  // old naive mean over 25 patterns (dragged toward 1500 by untouched patterns).
+  const avgRating = Math.round(globalSkill.globalRating);
+  const breadth = globalSkill.breadthMastered;
 
   const DIFFICULTY_ORDER = { easy: 1, medium: 2, hard: 3 } as const;
   type DifficultyKey = keyof typeof DIFFICULTY_ORDER;
@@ -273,6 +314,7 @@ export async function GET() {
 
   const weeklySummary = {
     avg_rating: avgRating,
+    level: globalSkill.level,
     breadth,
     difficulty_ceiling: difficultyCeiling,
     median_time_to_insight_seconds: medianTimeToInsightSeconds,
@@ -281,7 +323,15 @@ export async function GET() {
   };
 
   return Response.json({
-    data: { patterns, trajectory, coach, suggestions, brief, weekly_summary: weeklySummary },
+    data: {
+      patterns,
+      trajectory,
+      coach,
+      suggestions,
+      brief,
+      weekly_summary: weeklySummary,
+      global_skill: globalSkill,
+    },
     error: null,
   });
 }

@@ -37,7 +37,9 @@ import {
 } from "@/lib/planning-engine";
 import { dbCardToFSRS, getRetrievability } from "@/lib/fsrs";
 import { estimateCardMinutes } from "@/lib/card-estimator";
-import { buildDsaZones, zpdDifficulty } from "@/lib/dsa-planner";
+import { buildDsaZones } from "@/lib/dsa-planner";
+import { zpdTarget } from "@/lib/zpd";
+import { effectiveRating, type GlobalSkill } from "@/lib/skill-level";
 import { weaknessFromMastery, type Difficulty } from "@/lib/pattern-rating";
 import type { Database, Tables } from "@/types/database";
 
@@ -123,6 +125,8 @@ export interface SuggestedProblem {
 }
 
 export interface DsaRecommendation {
+  /** Global DSA skill: beginner/intermediate/advanced level + weighted rating. */
+  globalSkill: GlobalSkill;
   /** Patterns under-practiced vs their deserved share (portfolio drift). */
   neglectedPatterns: string[];
   overPracticedPatterns: string[];
@@ -497,19 +501,29 @@ export async function computeDsaRecommendation(
     return { data: null, error: zonesRes.error ?? "No DSA data" };
   }
   const z = zonesRes.data;
+  const globalSkill = z.global_skill;
 
+  // ZPD band reflects rd-adaptive targeting + cold-start transfer toward the
+  // user's global rating — matching exactly what the planner selects against.
   const weakestPatterns: WeakPattern[] = (masteryRes.data ?? [])
     .map((r) => ({
       pattern: r.pattern,
       rating: Math.round(r.rating),
       weakness: weaknessFromMastery(r.rating, r.rd),
-      zpd: zpdDifficulty(r.rating),
+      zpd: zpdTarget(
+        effectiveRating(
+          { rating: r.rating, rd: r.rd },
+          globalSkill.globalRating,
+          globalSkill.globalRd,
+        ),
+      ).band,
     }))
     .sort((a, b) => b.weakness - a.weakness)
     .slice(0, 3);
 
   return {
     data: {
+      globalSkill,
       neglectedPatterns: z.coach.neglected,
       overPracticedPatterns: z.coach.over_practiced,
       balanceScore: z.coach.balance_score,

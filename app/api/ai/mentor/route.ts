@@ -33,6 +33,7 @@ You are a planner, not a to-do dumper. When a lecture is several days away with 
 Open with a one-line headline of today's single focus, THEN the structured day plan, THEN the multi-day pacing to the lecture. Importance order: imminent lecture prep (paced across days) > due SRS reviews > weak concepts > DSA cadence.
 
 ## DSA selection rules
+- Calibrate your tone, explanation depth, and problem difficulty to the user's stated skill level (beginner / intermediate / advanced). If the level is CALIBRATING, prioritize diagnostic, near-peer problems to localize their level quickly, and say you're still getting a read on their level.
 - Pick difficulty by the user's ZPD for the target pattern — never far above or below their Glicko-2 rating.
 - Prefer neglected/under-practiced patterns; if the user is already balanced and strong, say so and suggest a maintenance problem.
 - If concrete problems are provided, recommend one by name; otherwise prescribe a problem in the top neglected/weak pattern at its ZPD difficulty.
@@ -197,8 +198,15 @@ function buildLectureContextString(intel: LectureIntel): string {
  * picks + portfolio drift) so the mentor names a specific, well-calibrated problem.
  */
 function buildDsaContextString(dsa: DsaRecommendation): string {
+  const gs = dsa.globalSkill;
+  const levelLine =
+    gs.level === "calibrating"
+      ? `- Skill level: CALIBRATING (not enough confident data yet — prefer diagnostic, near-peer problems to localize their level; global rating ${Math.round(gs.globalRating)})`
+      : `- Skill level: ${gs.level.toUpperCase()} (global Glicko-2 rating ${Math.round(gs.globalRating)}, confidence ${pct(gs.confidence)}, ${gs.breadthAttempted}/25 patterns practiced)`;
+
   const lines: string[] = [
     "DSA PRACTICE (authoritative — Glicko-2 skill ratings, ZPD difficulty, portfolio drift):",
+    levelLine,
     `- Practice balance: ${pct(dsa.balanceScore)} (100% = evenly spread across patterns)`,
     `- Neglected patterns (under-practiced): ${dsa.neglectedPatterns.length ? dsa.neglectedPatterns.join(", ") : "none"}`,
     `- Over-practiced patterns: ${dsa.overPracticedPatterns.length ? dsa.overPracticedPatterns.join(", ") : "none"}`,
@@ -231,6 +239,34 @@ function buildDsaContextString(dsa: DsaRecommendation): string {
   return lines.join("\n");
 }
 
+/**
+ * Merge the latest skill-level label into users.settings.skill_level_cache so the
+ * hysteresis in computeGlobalSkill has a previous label to resist flapping
+ * against. Read-modify-write of the jsonb blob; failures are swallowed (best
+ * effort — the level still computes correctly without the cache).
+ */
+async function persistSkillLevel(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  level: string
+): Promise<void> {
+  try {
+    const { data } = await supabase
+      .from("users")
+      .select("settings")
+      .eq("id", userId)
+      .single();
+    const settings = (data?.settings ?? {}) as Record<string, unknown>;
+    if (settings.skill_level_cache === level) return; // no-op when unchanged
+    await supabase
+      .from("users")
+      .update({ settings: { ...settings, skill_level_cache: level } })
+      .eq("id", userId);
+  } catch {
+    /* best effort — ignore */
+  }
+}
+
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
@@ -255,6 +291,12 @@ export async function POST(request: NextRequest) {
   const dsaContext = dsaRes.data
     ? "\n\n" + buildDsaContextString(dsaRes.data)
     : "";
+
+  // Persist the (hysteretic) skill level so future computations resist flapping
+  // near a band boundary across sessions. Fire-and-forget; never blocks the AI.
+  if (dsaRes.data && dsaRes.data.globalSkill.level !== "calibrating") {
+    void persistSkillLevel(supabase, user.id, dsaRes.data.globalSkill.level);
+  }
 
   if (type === "greeting") {
     const contextStr = buildContextString(ctx) + lectureContext + dsaContext;

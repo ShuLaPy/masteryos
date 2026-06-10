@@ -11,7 +11,17 @@ import {
   balanceScore,
   type MasterySnapshot,
 } from "@/lib/dsa-coach";
-import { zpdDifficulty } from "@/lib/dsa-planner";
+import {
+  zpdTarget,
+  problemSignal,
+  scoreProblemFit,
+  DEFAULT_TARGET_SUCCESS,
+} from "@/lib/zpd";
+import {
+  computeGlobalSkill,
+  effectiveRating,
+  type SkillLevelState,
+} from "@/lib/skill-level";
 import { weaknessFromMastery } from "@/lib/pattern-rating";
 import { CANONICAL_PATTERNS, type CanonicalPattern } from "@/lib/pattern-map";
 import PatternMasteryHeatmap from "@/components/app/dsa/PatternMasteryHeatmap";
@@ -64,7 +74,9 @@ export default async function DSATrackPage() {
         .order("created_at", { ascending: true }),
       supabase
         .from("problem_bank")
-        .select("id, slug, title, difficulty, patterns, leetcode_url"),
+        .select(
+          "id, slug, title, difficulty, patterns, leetcode_url, elo_rating, acceptance_rate",
+        ),
       supabase
         .from("dsa_problems")
         .select("id, url, patterns")
@@ -81,8 +93,25 @@ export default async function DSATrackPage() {
       supabase.from("users").select("settings").eq("id", user.id).single(),
     ]);
 
-  const blindMode =
-    ((profileRes.data?.settings ?? {}) as Record<string, unknown>).blind_mode === true;
+  const settings = (profileRes.data?.settings ?? {}) as Record<string, unknown>;
+  const blindMode = settings.blind_mode === true;
+  const baseTargetSuccess =
+    typeof settings.zpd_target_success === "number" &&
+    Number.isFinite(settings.zpd_target_success) &&
+    settings.zpd_target_success > 0.5 &&
+    settings.zpd_target_success < 0.95
+      ? settings.zpd_target_success
+      : DEFAULT_TARGET_SUCCESS;
+  const previousLevel =
+    settings.skill_level_cache === "beginner" ||
+    settings.skill_level_cache === "intermediate" ||
+    settings.skill_level_cache === "advanced" ||
+    settings.skill_level_cache === "calibrating"
+      ? (settings.skill_level_cache as SkillLevelState)
+      : undefined;
+
+  // ── Global skill (level + weighted rating) ──────────────────────────────────
+  const globalSkill = computeGlobalSkill(masteryRes.data ?? [], { previousLevel });
 
   // ── Mastery map ────────────────────────────────────────────────────────────
   const masteryByPattern = new Map<CanonicalPattern, MasterySnapshot>(
@@ -95,6 +124,14 @@ export default async function DSATrackPage() {
     (masteryRes.data ?? []).map((r) => [r.pattern, r.attempts]),
   );
 
+  // ZPD band shown per pattern reflects rd-adaptive targeting + cold-start
+  // transfer toward the user's global rating (matches what the planner selects).
+  const zpdBand = (m: MasterySnapshot): string =>
+    zpdTarget(
+      effectiveRating(m, globalSkill.globalRating, globalSkill.globalRd),
+      { baseTargetSuccess },
+    ).band;
+
   const patterns = CANONICAL_PATTERNS.map((p) => {
     const m = masteryByPattern.get(p) ?? { rating: DEFAULT_RATING, rd: DEFAULT_RD };
     return {
@@ -103,7 +140,7 @@ export default async function DSATrackPage() {
       rd: m.rd,
       attempts: attemptsCountByPattern.get(p) ?? 0,
       weakness: weaknessFromMastery(m.rating, m.rd),
-      zpd_difficulty: zpdDifficulty(m.rating),
+      zpd_difficulty: zpdBand(m),
     };
   });
 
@@ -166,22 +203,33 @@ export default async function DSATrackPage() {
   }> = [];
   const usedSlugs = new Set<string>();
   for (const tp of topPatterns) {
-    const zpd = zpdDifficulty(masteryByPattern.get(tp)?.rating ?? DEFAULT_RATING);
-    const match = (bankRes.data ?? []).find(
-      (b) =>
-        !usedSlugs.has(b.slug) &&
-        !(b.leetcode_url && solvedUrls.has(b.leetcode_url)) &&
-        b.difficulty === zpd &&
-        ((b.patterns as string[]) ?? []).includes(tp),
+    const m = masteryByPattern.get(tp) ?? { rating: DEFAULT_RATING, rd: DEFAULT_RD };
+    const target = zpdTarget(
+      effectiveRating(m, globalSkill.globalRating, globalSkill.globalRd),
+      { baseTargetSuccess },
     );
-    if (match) {
-      usedSlugs.add(match.slug);
+    // Best-fit unsolved bank problem in this pattern (continuous, not bucket-exact).
+    type BankRow = NonNullable<typeof bankRes.data>[number];
+    let best: BankRow | null = null;
+    let bestFit = 0;
+    for (const b of bankRes.data ?? []) {
+      if (usedSlugs.has(b.slug)) continue;
+      if (b.leetcode_url && solvedUrls.has(b.leetcode_url)) continue;
+      if (!((b.patterns as string[]) ?? []).includes(tp)) continue;
+      const fit = scoreProblemFit(problemSignal(b), target);
+      if (fit > bestFit) {
+        bestFit = fit;
+        best = b;
+      }
+    }
+    if (best) {
+      usedSlugs.add(best.slug);
       suggestions.push({
-        slug: match.slug,
-        title: match.title,
-        difficulty: match.difficulty,
-        url: match.leetcode_url,
-        patterns: (match.patterns as string[]) ?? [],
+        slug: best.slug,
+        title: best.title,
+        difficulty: best.difficulty,
+        url: best.leetcode_url,
+        patterns: (best.patterns as string[]) ?? [],
         target_pattern: tp,
       });
     }
@@ -230,15 +278,11 @@ export default async function DSATrackPage() {
     "Keep grinding — consistent, balanced practice across all 25 patterns builds lasting mastery.";
 
   // ── Weekly summary metrics (§14) ──────────────────────────────────────────
-  const MASTERY_RATING_THRESHOLD = 1650;
-  const MASTERY_RD_THRESHOLD = 200;
-
-  const avgRating = Math.round(
-    patterns.reduce((s, p) => s + p.rating, 0) / patterns.length,
-  );
-  const breadth = patterns.filter(
-    (p) => p.rating >= MASTERY_RATING_THRESHOLD && p.rd <= MASTERY_RD_THRESHOLD,
-  ).length;
+  // Precision-weighted global rating + mastered breadth (confident patterns only)
+  // replace the old naive mean over all 25 patterns (which an unattended pattern
+  // dragged toward 1500).
+  const avgRating = Math.round(globalSkill.globalRating);
+  const breadth = globalSkill.breadthMastered;
 
   const DIFFICULTY_ORDER = { easy: 1, medium: 2, hard: 3 } as const;
   type DifficultyKey = keyof typeof DIFFICULTY_ORDER;
@@ -276,6 +320,7 @@ export default async function DSATrackPage() {
 
   const weeklySummary = {
     avg_rating: avgRating,
+    level: globalSkill.level,
     breadth,
     difficulty_ceiling: difficultyCeiling,
     median_time_to_insight_seconds: medianTimeToInsightSeconds,
@@ -299,6 +344,14 @@ export default async function DSATrackPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Code2 className="w-6 h-6 text-emerald-400" /> DSA Track
+            <span
+              className="ml-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-primary/15 text-primary border border-primary/25"
+              title={`Global Glicko-2 rating ${Math.round(globalSkill.globalRating)} · confidence ${Math.round(globalSkill.confidence * 100)}% · ${globalSkill.breadthAttempted}/25 patterns practiced`}
+            >
+              {globalSkill.level === "calibrating"
+                ? "Calibrating…"
+                : `${globalSkill.level[0].toUpperCase()}${globalSkill.level.slice(1)} · ${Math.round(globalSkill.globalRating)}`}
+            </span>
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Pattern mastery · Glicko-2 ratings · ZPD suggestions

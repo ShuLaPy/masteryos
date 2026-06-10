@@ -7,7 +7,18 @@ import {
   patternPriority,
   type MasterySnapshot,
 } from "@/lib/dsa-coach";
-import { zpdDifficulty } from "@/lib/dsa-planner";
+import {
+  zpdTarget,
+  problemSignal,
+  scoreProblemFit,
+  DEFAULT_TARGET_SUCCESS,
+  type ZpdTarget,
+} from "@/lib/zpd";
+import {
+  computeGlobalSkill,
+  effectiveRating,
+  type SkillLevelState,
+} from "@/lib/skill-level";
 import { CANONICAL_PATTERNS, type CanonicalPattern } from "@/lib/pattern-map";
 import { weaknessFromMastery } from "@/lib/pattern-rating";
 
@@ -37,10 +48,10 @@ export async function GET() {
   // ── 1. Parallel data fetch ─────────────────────────────────────────────────
   const cutoff14d = new Date(Date.now() - 14 * 86_400_000).toISOString();
 
-  const [masteryRes, attemptsRes, solvedRes, bankRes] = await Promise.all([
+  const [masteryRes, attemptsRes, solvedRes, bankRes, settingsRes] = await Promise.all([
     supabase
       .from("pattern_mastery")
-      .select("pattern, rating, rd")
+      .select("pattern, rating, rd, attempts")
       .eq("user_id", user.id),
     supabase
       .from("problem_attempts")
@@ -53,7 +64,10 @@ export async function GET() {
       .eq("user_id", user.id),
     supabase
       .from("problem_bank")
-      .select("id, slug, title, difficulty, patterns, leetcode_url"),
+      .select(
+        "id, slug, title, difficulty, patterns, leetcode_url, elo_rating, acceptance_rate",
+      ),
+    supabase.from("users").select("settings").eq("id", user.id).single(),
   ]);
 
   const fetchErr =
@@ -79,6 +93,29 @@ export async function GET() {
 
   const defaultMastery = (p: CanonicalPattern): MasterySnapshot =>
     masteryByPattern.get(p) ?? { rating: 1500, rd: 350 };
+
+  // Global skill drives rd-adaptive ZPD targets + cold-start transfer.
+  const settings = (settingsRes.data?.settings ?? {}) as Record<string, unknown>;
+  const baseTargetSuccess =
+    typeof settings.zpd_target_success === "number" &&
+    Number.isFinite(settings.zpd_target_success) &&
+    settings.zpd_target_success > 0.5 &&
+    settings.zpd_target_success < 0.95
+      ? settings.zpd_target_success
+      : DEFAULT_TARGET_SUCCESS;
+  const previousLevel =
+    settings.skill_level_cache === "beginner" ||
+    settings.skill_level_cache === "intermediate" ||
+    settings.skill_level_cache === "advanced" ||
+    settings.skill_level_cache === "calibrating"
+      ? (settings.skill_level_cache as SkillLevelState)
+      : undefined;
+  const globalSkill = computeGlobalSkill(masteryRes.data ?? [], { previousLevel });
+  const zpdTargetFor = (p: CanonicalPattern): ZpdTarget =>
+    zpdTarget(
+      effectiveRating(defaultMastery(p), globalSkill.globalRating, globalSkill.globalRd),
+      { baseTargetSuccess },
+    );
 
   const target = targetDistribution(masteryByPattern);
   const actual = actualDistribution(attemptsRes.data ?? [], 14, Date.now());
@@ -108,9 +145,9 @@ export async function GET() {
     return Response.json({ data: { suggestions: [] }, error: null });
   }
 
-  // ── 3. ZPD difficulty per target pattern ───────────────────────────────────
-  const zpdByPattern = new Map<string, string>(
-    targetPatterns.map((p) => [p, zpdDifficulty(defaultMastery(p).rating)]),
+  // ── 3. ZPD target per target pattern (rd-adaptive, success-targeted) ───────
+  const zpdTargetByPattern = new Map<string, ZpdTarget>(
+    targetPatterns.map((p) => [p, zpdTargetFor(p)]),
   );
 
   // ── 4. Build and score the candidate set ───────────────────────────────────
@@ -143,13 +180,11 @@ export async function GET() {
       );
       if (overlapPatterns.length === 0) return [];
 
-      // Must hit the ZPD difficulty for at least one overlapping target pattern
-      const diffMatch = overlapPatterns.some(
-        (p) => zpdByPattern.get(p) === b.difficulty,
-      );
-      if (!diffMatch) return [];
+      // Continuous difficulty fit (real Elo → acceptance pseudo-Elo → categorical)
+      // replaces the brittle bucket-equality filter. Score = patternPriority ×
+      // how close the problem sits to the pattern's ZPD difficulty target.
+      const signal = problemSignal(b);
 
-      // Score by the highest patternPriority among overlapping target patterns
       let bestPat = overlapPatterns[0];
       let bestScore = 0;
       for (const p of overlapPatterns) {
@@ -159,8 +194,13 @@ export async function GET() {
           (target.get(cp) ?? 0) - (actual.get(p) ?? 0),
         );
         const pp = patternPriority(defaultMastery(cp), cp, gap);
-        if (pp > bestScore) { bestScore = pp; bestPat = p; }
+        const tgt = zpdTargetByPattern.get(p);
+        const fit = tgt ? scoreProblemFit(signal, tgt) : 0;
+        const combined = pp * fit;
+        if (combined > bestScore) { bestScore = combined; bestPat = p; }
       }
+
+      if (bestScore === 0) return [];
 
       return [
         {
@@ -186,7 +226,7 @@ export async function GET() {
     .map((p) => {
       const m = defaultMastery(p);
       const w = weaknessFromMastery(m.rating, m.rd).toFixed(2);
-      const zpd = zpdByPattern.get(p) ?? "medium";
+      const zpd = zpdTargetByPattern.get(p)?.band ?? "medium";
       const tag = neglected.includes(p) ? " [NEGLECTED]" : "";
       return `  ${p}: rating=${Math.round(m.rating)}, weakness=${w}, zpd_difficulty=${zpd}${tag}`;
     })

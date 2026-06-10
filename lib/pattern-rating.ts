@@ -15,10 +15,10 @@
 // --- Glicko-2 system constants ---------------------------------------------
 
 /** Scale factor between Glicko (1500-centred) and Glicko-2 (0-centred) ratings. */
-const GLICKO2_SCALE = 173.7178;
+export const GLICKO2_SCALE = 173.7178;
 
 /** Base rating that maps to μ = 0 on the Glicko-2 scale. */
-const BASE_RATING = 1500;
+export const BASE_RATING = 1500;
 
 /**
  * System constant τ — constrains volatility change over time. Smaller values
@@ -31,7 +31,7 @@ const TAU = 0.5;
 const EPSILON = 0.000001;
 
 /** Maximum rating deviation — a fully uncertain rating (matches DB default). */
-const RD_MAX = 350;
+export const RD_MAX = 350;
 
 // --- Weakness-signal constants (§4.4) --------------------------------------
 
@@ -101,12 +101,16 @@ export function outcomeToScore(outcome: AttemptOutcome): number {
 // --- Glicko-2 internal helpers ---------------------------------------------
 
 /** g(φ) — weights an opponent's impact by their rating deviation. */
-function g(phi: number): number {
+export function g(phi: number): number {
   return 1 / Math.sqrt(1 + (3 * phi * phi) / (Math.PI * Math.PI));
 }
 
-/** E(μ, μ_j, φ_j) — expected score against opponent j. */
-function expectedScore(mu: number, muOpp: number, phiOpp: number): number {
+/** E(μ, μ_j, φ_j) — expected score against opponent j (Glicko-2 scale). */
+export function expectedScore(
+  mu: number,
+  muOpp: number,
+  phiOpp: number,
+): number {
   return 1 / (1 + Math.exp(-g(phiOpp) * (mu - muOpp)));
 }
 
@@ -175,11 +179,17 @@ function newVolatility(
  * @param current      Current state on the Glicko scale (rating, rd, volatility)
  * @param opponentRating Opponent rating on the Glicko scale (from difficulty)
  * @param score        Outcome score s ∈ [0,1]
+ * @param opponentRd   Opponent rating deviation (Glicko scale). Defaults to
+ *                     RD_MAX (the legacy behaviour — opponent uncertainty
+ *                     unknown). When the opponent is a problem with a curated
+ *                     Elo (problem_bank.elo_rating), pass a LOW value so the
+ *                     match moves the rating more decisively.
  */
 export function updateRating(
   current: Glicko2State,
   opponentRating: number,
   score: number,
+  opponentRd: number = RD_MAX,
 ): Glicko2State {
   // Step 2: convert player + opponent to the Glicko-2 scale.
   const mu = (current.rating - BASE_RATING) / GLICKO2_SCALE;
@@ -187,7 +197,9 @@ export function updateRating(
   const sigma = current.volatility;
 
   const muOpp = (opponentRating - BASE_RATING) / GLICKO2_SCALE;
-  const phiOpp = RD_MAX / GLICKO2_SCALE; // opponent uncertainty unknown → max RD
+  // Opponent uncertainty: max RD by default, or the supplied (lower) value when
+  // the opponent is a confidently-rated problem.
+  const phiOpp = Math.min(Math.max(opponentRd, 0), RD_MAX) / GLICKO2_SCALE;
 
   // Step 3: variance v of the rating based on the single game outcome.
   const gOpp = g(phiOpp);
