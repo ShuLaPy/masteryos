@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { dbCardToFSRS, getRetrievability } from "@/lib/fsrs";
 import { logAttemptAndUpdateMastery } from "@/lib/dsa-planner";
-import { weaknessFromMastery } from "@/lib/pattern-rating";
+import { currentRd, weaknessFromMastery } from "@/lib/pattern-rating";
 import { targetDistribution, actualDistribution, type MasterySnapshot } from "@/lib/dsa-coach";
 import type { CanonicalPattern } from "@/lib/pattern-map";
 import type { Difficulty } from "@/lib/pattern-rating";
@@ -123,7 +123,10 @@ async function handleStart(
       .eq("user_id", userId)
       .not("problem_id", "is", null)
       .lt("created_at", sevenDaysAgo),
-    supabase.from("pattern_mastery").select("pattern, rating, rd").eq("user_id", userId),
+    supabase
+      .from("pattern_mastery")
+      .select("pattern, rating, rd, volatility, last_attempt_at")
+      .eq("user_id", userId),
     supabase.from("problem_bank").select("id, slug, title, difficulty, patterns, leetcode_url"),
   ]);
 
@@ -274,11 +277,20 @@ async function handleStart(
 
   // ── Backfill from problem_bank if still under 4 ───────────────────────────────
   if (selected.length < 4) {
+    // Effective rd (read-time inactivity inflation) so stale patterns rank weaker.
     const masteryByPattern = new Map<CanonicalPattern, MasterySnapshot>(
-      (masteryRes.data ?? []).map((r: { pattern: string; rating: number; rd: number }) => [
-        r.pattern as CanonicalPattern,
-        { rating: r.rating, rd: r.rd },
-      ]),
+      (masteryRes.data ?? []).map(
+        (r: {
+          pattern: string;
+          rating: number;
+          rd: number;
+          volatility: number;
+          last_attempt_at: string | null;
+        }) => [
+          r.pattern as CanonicalPattern,
+          { rating: r.rating, rd: currentRd(r.rd, r.volatility, r.last_attempt_at) },
+        ],
+      ),
     );
 
     // Get weakness score per pattern

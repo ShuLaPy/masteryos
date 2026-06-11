@@ -22,7 +22,7 @@ import {
   effectiveRating,
   type SkillLevelState,
 } from "@/lib/skill-level";
-import { weaknessFromMastery } from "@/lib/pattern-rating";
+import { currentRd, weaknessFromMastery } from "@/lib/pattern-rating";
 import { CANONICAL_PATTERNS, type CanonicalPattern } from "@/lib/pattern-map";
 import PatternMasteryHeatmap from "@/components/app/dsa/PatternMasteryHeatmap";
 import DsaCoachCard from "@/components/app/dsa/DsaCoachCard";
@@ -59,7 +59,7 @@ export default async function DSATrackPage() {
     await Promise.all([
       supabase
         .from("pattern_mastery")
-        .select("pattern, rating, rd, attempts")
+        .select("pattern, rating, rd, attempts, volatility, last_attempt_at")
         .eq("user_id", user.id),
       supabase
         .from("problem_attempts")
@@ -110,18 +110,25 @@ export default async function DSATrackPage() {
       ? (settings.skill_level_cache as SkillLevelState)
       : undefined;
 
+  // Effective rd: read-time inactivity inflation — stale patterns display
+  // elevated rd/weakness and feed the global skill with lower precision.
+  const masteryRows = (masteryRes.data ?? []).map((r) => ({
+    ...r,
+    rd: currentRd(r.rd, r.volatility, r.last_attempt_at),
+  }));
+
   // ── Global skill (level + weighted rating) ──────────────────────────────────
-  const globalSkill = computeGlobalSkill(masteryRes.data ?? [], { previousLevel });
+  const globalSkill = computeGlobalSkill(masteryRows, { previousLevel });
 
   // ── Mastery map ────────────────────────────────────────────────────────────
   const masteryByPattern = new Map<CanonicalPattern, MasterySnapshot>(
-    (masteryRes.data ?? []).map((r) => [
+    masteryRows.map((r) => [
       r.pattern as CanonicalPattern,
       { rating: r.rating, rd: r.rd },
     ]),
   );
   const attemptsCountByPattern = new Map<string, number>(
-    (masteryRes.data ?? []).map((r) => [r.pattern, r.attempts]),
+    masteryRows.map((r) => [r.pattern, r.attempts]),
   );
 
   // ZPD band shown per pattern reflects rd-adaptive targeting + cold-start

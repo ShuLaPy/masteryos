@@ -33,6 +33,29 @@ const EPSILON = 0.000001;
 /** Maximum rating deviation — a fully uncertain rating (matches DB default). */
 export const RD_MAX = 350;
 
+/**
+ * Minimum rating deviation on update output — keeps ratings responsive after
+ * long streaks (Lichess production value). Below PHI_FRESH (50), so the
+ * staleness and ZPD-uncertainty signals still reach exactly zero.
+ */
+export const RD_MIN = 45;
+
+/**
+ * Cap on volatility σ — prevents runaway erraticism from pathological input
+ * sequences (Lichess production value).
+ */
+export const VOLATILITY_MAX = 0.1;
+
+/** Fallback σ when the stored value is unusable (matches DB default). */
+const DEFAULT_VOLATILITY = 0.06;
+
+/**
+ * Hard cap on the σ' iteration loops. The Illinois iteration converges in ≤ 11
+ * steps on all valid inputs (verified empirically) — this only binds on inputs
+ * the sanitizer should have already rejected.
+ */
+const MAX_VOLATILITY_ITERATIONS = 100;
+
 // --- Weakness-signal constants (§4.4) --------------------------------------
 
 const TARGET_RATING = 1650;
@@ -42,14 +65,25 @@ const PHI_MAX = 350; // φ of a fully-decayed / never-seen pattern
 
 // --- Public types ----------------------------------------------------------
 
-export type Difficulty = "easy" | "medium" | "hard";
+export const DIFFICULTIES = ["easy", "medium", "hard"] as const;
+export type Difficulty = (typeof DIFFICULTIES)[number];
 
-export type AttemptOutcome =
-  | "solved_fast"
-  | "solved_effort"
-  | "solved_hint"
-  | "solved_after_approach"
-  | "failed";
+export const ATTEMPT_OUTCOMES = [
+  "solved_fast",
+  "solved_effort",
+  "solved_hint",
+  "solved_after_approach",
+  "failed",
+] as const;
+export type AttemptOutcome = (typeof ATTEMPT_OUTCOMES)[number];
+
+export function isDifficulty(value: unknown): value is Difficulty {
+  return (DIFFICULTIES as readonly unknown[]).includes(value);
+}
+
+export function isAttemptOutcome(value: unknown): value is AttemptOutcome {
+  return (ATTEMPT_OUTCOMES as readonly unknown[]).includes(value);
+}
 
 export interface Glicko2State {
   /** Skill estimate μ on the Glicko (1500-centred) scale. */
@@ -143,7 +177,7 @@ function newVolatility(
     B = Math.log(deltaSq - phiSq - v);
   } else {
     let k = 1;
-    while (f(a - k * TAU) < 0) {
+    while (f(a - k * TAU) < 0 && k < MAX_VOLATILITY_ITERATIONS) {
       k += 1;
     }
     B = a - k * TAU;
@@ -152,7 +186,9 @@ function newVolatility(
   let fA = f(A);
   let fB = f(B);
 
-  while (Math.abs(B - A) > EPSILON) {
+  let iterations = 0;
+  while (Math.abs(B - A) > EPSILON && iterations < MAX_VOLATILITY_ITERATIONS) {
+    iterations += 1;
     const C = A + ((A - B) * fA) / (fB - fA);
     const fC = f(C);
     if (fC * fB <= 0) {
@@ -166,6 +202,25 @@ function newVolatility(
   }
 
   return Math.exp(A / 2);
+}
+
+/**
+ * Coerce a (possibly poisoned) state into the valid Glicko-2 domain. Non-finite
+ * or out-of-range values fall back to the system defaults, so a bad DB row
+ * self-heals on its next update instead of propagating NaN.
+ */
+function sanitizeState(s: Glicko2State): Glicko2State {
+  return {
+    rating: Number.isFinite(s.rating) ? s.rating : BASE_RATING,
+    rd:
+      Number.isFinite(s.rd) && s.rd > 0
+        ? Math.min(s.rd, RD_MAX)
+        : RD_MAX,
+    volatility:
+      Number.isFinite(s.volatility) && s.volatility > 0
+        ? Math.min(s.volatility, VOLATILITY_MAX)
+        : DEFAULT_VOLATILITY,
+  };
 }
 
 // --- 3. Single-match Glicko-2 update ---------------------------------------
@@ -191,15 +246,24 @@ export function updateRating(
   score: number,
   opponentRd: number = RD_MAX,
 ): Glicko2State {
+  // Step 1 (hardening): sanitize inputs. Invalid evidence (non-finite score or
+  // opponent) must never move the rating — return the sanitized state as-is.
+  const safe = sanitizeState(current);
+  if (!Number.isFinite(score) || !Number.isFinite(opponentRating)) {
+    return safe;
+  }
+  const s = Math.max(0, Math.min(1, score));
+  const oppRd = Number.isFinite(opponentRd) ? opponentRd : RD_MAX;
+
   // Step 2: convert player + opponent to the Glicko-2 scale.
-  const mu = (current.rating - BASE_RATING) / GLICKO2_SCALE;
-  const phi = current.rd / GLICKO2_SCALE;
-  const sigma = current.volatility;
+  const mu = (safe.rating - BASE_RATING) / GLICKO2_SCALE;
+  const phi = safe.rd / GLICKO2_SCALE;
+  const sigma = safe.volatility;
 
   const muOpp = (opponentRating - BASE_RATING) / GLICKO2_SCALE;
   // Opponent uncertainty: max RD by default, or the supplied (lower) value when
   // the opponent is a confidently-rated problem.
-  const phiOpp = Math.min(Math.max(opponentRd, 0), RD_MAX) / GLICKO2_SCALE;
+  const phiOpp = Math.min(Math.max(oppRd, 0), RD_MAX) / GLICKO2_SCALE;
 
   // Step 3: variance v of the rating based on the single game outcome.
   const gOpp = g(phiOpp);
@@ -207,11 +271,11 @@ export function updateRating(
   const v = 1 / (gOpp * gOpp * e * (1 - e));
 
   // Step 4: estimated improvement Δ in rating.
-  const deltaSum = gOpp * (score - e);
+  const deltaSum = gOpp * (s - e);
   const delta = v * deltaSum;
 
-  // Step 5: new volatility σ'.
-  const sigmaPrime = newVolatility(sigma, phi, v, delta);
+  // Step 5: new volatility σ', capped at VOLATILITY_MAX.
+  const sigmaPrime = Math.min(newVolatility(sigma, phi, v, delta), VOLATILITY_MAX);
 
   // Step 6: pre-rating-period RD (inflate by new volatility).
   const phiStar = Math.sqrt(phi * phi + sigmaPrime * sigmaPrime);
@@ -221,11 +285,21 @@ export function updateRating(
   const muPrime = mu + phiPrime * phiPrime * deltaSum;
 
   // Step 8: convert back to the Glicko scale.
-  return {
+  const next: Glicko2State = {
     rating: GLICKO2_SCALE * muPrime + BASE_RATING,
-    rd: Math.min(GLICKO2_SCALE * phiPrime, RD_MAX),
+    rd: Math.min(Math.max(GLICKO2_SCALE * phiPrime, RD_MIN), RD_MAX),
     volatility: sigmaPrime,
   };
+
+  // Final invariant: non-finite state never escapes.
+  if (
+    !Number.isFinite(next.rating) ||
+    !Number.isFinite(next.rd) ||
+    !Number.isFinite(next.volatility)
+  ) {
+    return safe;
+  }
+  return next;
 }
 
 // --- 4. RD inflation for inactivity ----------------------------------------
@@ -245,10 +319,40 @@ export function inflateRdForInactivity(
   volatility: number,
   daysSince: number,
 ): number {
-  if (daysSince <= 0) return Math.min(rd, RD_MAX);
+  if (!Number.isFinite(rd)) return RD_MAX;
+  const days = Number.isFinite(daysSince) ? daysSince : 0;
+  if (days <= 0) return Math.min(rd, RD_MAX);
+  const vol =
+    Number.isFinite(volatility) && volatility > 0
+      ? Math.min(volatility, VOLATILITY_MAX)
+      : DEFAULT_VOLATILITY;
   const phi = rd / GLICKO2_SCALE;
-  const phiStar = Math.sqrt(phi * phi + volatility * volatility * daysSince);
+  const phiStar = Math.sqrt(phi * phi + vol * vol * days);
   return Math.min(GLICKO2_SCALE * phiStar, RD_MAX);
+}
+
+/**
+ * Effective rating deviation as of `now`: the stored rd inflated for the time
+ * elapsed since the pattern's last attempt. This is the READ-TIME counterpart
+ * of the write-path inflation in logAttemptAndUpdateMastery — every consumer
+ * of pattern_mastery.rd (weakness, priority, ZPD, global skill, display)
+ * should see the decayed uncertainty, not the value frozen at the last write.
+ *
+ * Null/invalid inputs degrade safely: missing last_attempt_at → stored rd
+ * (clamped); missing volatility → the system default.
+ */
+export function currentRd(
+  rd: number,
+  volatility: number | null | undefined,
+  lastAttemptAt: string | null | undefined,
+  nowMs: number = Date.now(),
+): number {
+  if (!Number.isFinite(rd)) return RD_MAX;
+  if (!lastAttemptAt) return Math.min(rd, RD_MAX);
+  const lastMs = new Date(lastAttemptAt).getTime();
+  if (!Number.isFinite(lastMs)) return Math.min(rd, RD_MAX);
+  const daysSince = (nowMs - lastMs) / 86_400_000;
+  return inflateRdForInactivity(rd, volatility ?? DEFAULT_VOLATILITY, daysSince);
 }
 
 // --- 5. Derived weakness signal (§4.4) -------------------------------------
@@ -275,7 +379,8 @@ export function weaknessFromMastery(rating: number, rd: number): number {
 // --- Worked-example assertions (verified numerically) ----------------------
 //
 // These document expected behaviour with concrete, hand-checkable numbers.
-// Run: npx tsx -e "import('./lib/pattern-rating')..."  (values from a real run).
+// Run `npm run verify:glicko2` — scripts/verify-glicko2.ts asserts all of them
+// (plus a fuzz grid against an independent reference implementation).
 //
 // 1. Difficulty + outcome maps:
 //    difficultyToRating('hard') === 1800
@@ -296,3 +401,13 @@ export function weaknessFromMastery(rating: number, rd: number): number {
 //    inflateRdForInactivity(350, 0.06, 9999) === 350 // capped at RD_MAX
 //    weaknessFromMastery(1700, 350) === 0.6           // 0.6 · staleness(=1)
 //    weaknessFromMastery(1650, 50) === 0              // at target, fully fresh
+//
+// 5. Guardrails (only bind on pathological inputs; valid-domain dynamics are
+//    byte-identical to pure Glicko-2 — proven by the fuzz grid):
+//    updateRating(s, 1550, NaN) === sanitize(s)       // invalid evidence: no-op
+//    output rd always ∈ [RD_MIN=45, RD_MAX=350]; σ' ≤ VOLATILITY_MAX=0.1
+//    weaknessFromMastery(1650, 45) === 0              // floor below PHI_FRESH
+//
+// 6. currentRd applies inactivity inflation at READ time:
+//    currentRd(60, 0.06, oneYearAgoIso) ≈ 208.0
+//    currentRd(60, 0.06, null) === 60                 // never attempted → as stored

@@ -1,7 +1,7 @@
 import { type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { complete } from "@/lib/ai-router";
-import { weaknessFromMastery } from "@/lib/pattern-rating";
+import { currentRd, weaknessFromMastery } from "@/lib/pattern-rating";
 import { type CanonicalPattern } from "@/lib/pattern-map";
 import { fetchLeetCodeProblem, extractLCSlug } from "@/lib/leetcode";
 
@@ -18,7 +18,7 @@ export async function GET() {
   const [masteryRes, recentDrillsRes, bankRes] = await Promise.all([
     supabase
       .from("pattern_mastery")
-      .select("pattern, rating, rd")
+      .select("pattern, rating, rd, volatility, last_attempt_at")
       .eq("user_id", user.id),
     supabase
       .from("pattern_drill_attempts")
@@ -35,10 +35,11 @@ export async function GET() {
       { status: 500 },
     );
 
+  // Effective rd (read-time inactivity inflation) so stale patterns weigh more.
   const masteryByPattern = new Map<CanonicalPattern, { rating: number; rd: number }>(
     (masteryRes.data ?? []).map((r) => [
       r.pattern as CanonicalPattern,
-      { rating: r.rating, rd: r.rd },
+      { rating: r.rating, rd: currentRd(r.rd, r.volatility, r.last_attempt_at) },
     ]),
   );
 

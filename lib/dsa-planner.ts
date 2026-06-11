@@ -9,8 +9,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatInTimeZone } from "date-fns-tz";
 import { dbCardToFSRS, fsrsCardToDB, newCard, reviewCard, Rating } from "@/lib/fsrs";
 import {
+  currentRd,
   difficultyToRating,
-  inflateRdForInactivity,
+  isDifficulty,
   outcomeToScore,
   updateRating,
   weaknessFromMastery,
@@ -68,6 +69,8 @@ export interface PatternUpdate {
 // ─── constants ───────────────────────────────────────────────────────────────
 
 const LADDER_SOURCE_TYPE = "dsa_ladder";
+
+const CANONICAL_PATTERN_SET = new Set<string>(CANONICAL_PATTERNS);
 
 const DEFAULT_RATING = 1500;
 const DEFAULT_RD = 350;
@@ -287,7 +290,24 @@ export async function logAttemptAndUpdateMastery(
     problemElo?: number;
   },
 ): Promise<{ data: { updated: PatternUpdate[] } | null; error: string | null }> {
+  // Defensive guards: this function has multiple callers (attempt route,
+  // problems route, competition, reviewRung). An invalid outcome/difficulty
+  // falls through its switch as undefined and would write NaN into
+  // pattern_mastery — reject here so no caller can poison the ratings.
   const score = outcomeToScore(outcome);
+  if (!Number.isFinite(score)) {
+    return { data: null, error: `Invalid outcome: ${String(outcome)}` };
+  }
+  if (!isDifficulty(difficulty)) {
+    return { data: null, error: `Invalid difficulty: ${String(difficulty)}` };
+  }
+  const credited = [
+    ...new Set(patterns.filter((p) => CANONICAL_PATTERN_SET.has(p))),
+  ];
+  if (credited.length === 0) {
+    return { data: null, error: "No canonical patterns to credit" };
+  }
+
   const hasProblemElo =
     typeof opts?.problemElo === "number" && Number.isFinite(opts.problemElo);
   const opponentRating = hasProblemElo
@@ -300,7 +320,7 @@ export async function logAttemptAndUpdateMastery(
   const { error: attemptErr } = await supabase.from("problem_attempts").insert({
     user_id: userId,
     problem_id: problemId,
-    patterns,
+    patterns: credited,
     difficulty,
     outcome_score: score,
     time_seconds: opts?.timeSeconds ?? null,
@@ -315,7 +335,7 @@ export async function logAttemptAndUpdateMastery(
     .from("pattern_mastery")
     .select("*")
     .eq("user_id", userId)
-    .in("pattern", patterns);
+    .in("pattern", credited);
 
   if (masteryErr) return { data: null, error: masteryErr.message };
 
@@ -323,54 +343,42 @@ export async function logAttemptAndUpdateMastery(
     (masteryRows ?? []).map((r) => [r.pattern, r]),
   );
 
-  // Glicko-2 update — parallel over all patterns.
-  let updated: PatternUpdate[];
-  try {
-    updated = await Promise.all(
-      patterns.map(async (pattern): Promise<PatternUpdate> => {
-        const existing = masteryMap.get(pattern);
-        const ratingBefore = existing?.rating ?? DEFAULT_RATING;
-        const rd = existing?.rd ?? DEFAULT_RD;
-        const volatility = existing?.volatility ?? DEFAULT_VOLATILITY;
-        const attempts = existing?.attempts ?? 0;
+  // Glicko-2 update for every credited pattern, then one batched upsert.
+  const updated: PatternUpdate[] = [];
+  const upsertRows = credited.map((pattern) => {
+    const existing = masteryMap.get(pattern);
+    const ratingBefore = existing?.rating ?? DEFAULT_RATING;
+    const rd = existing?.rd ?? DEFAULT_RD;
+    const volatility = existing?.volatility ?? DEFAULT_VOLATILITY;
+    const attempts = existing?.attempts ?? 0;
 
-        const daysSince = existing?.last_attempt_at
-          ? (Date.now() - new Date(existing.last_attempt_at).getTime()) /
-            86_400_000
-          : 0;
-
-        const inflatedRd = inflateRdForInactivity(rd, volatility, daysSince);
-        const after = updateRating(
-          { rating: ratingBefore, rd: inflatedRd, volatility },
-          opponentRating,
-          score,
-          opponentRd,
-        );
-
-        const { error: upsertErr } = await supabase
-          .from("pattern_mastery")
-          .upsert(
-            {
-              user_id: userId,
-              pattern,
-              rating: after.rating,
-              rd: after.rd,
-              volatility: after.volatility,
-              attempts: attempts + 1,
-              last_attempt_at: now,
-              updated_at: now,
-            },
-            { onConflict: "user_id,pattern" },
-          );
-
-        if (upsertErr) throw new Error(upsertErr.message);
-        return { pattern, ratingBefore, ratingAfter: after.rating };
-      }),
+    // Same inactivity-inflation path the read sites use.
+    const inflatedRd = currentRd(rd, volatility, existing?.last_attempt_at);
+    const after = updateRating(
+      { rating: ratingBefore, rd: inflatedRd, volatility },
+      opponentRating,
+      score,
+      opponentRd,
     );
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { data: null, error: message };
-  }
+
+    updated.push({ pattern, ratingBefore, ratingAfter: after.rating });
+    return {
+      user_id: userId,
+      pattern,
+      rating: after.rating,
+      rd: after.rd,
+      volatility: after.volatility,
+      attempts: attempts + 1,
+      last_attempt_at: now,
+      updated_at: now,
+    };
+  });
+
+  const { error: upsertErr } = await supabase
+    .from("pattern_mastery")
+    .upsert(upsertRows, { onConflict: "user_id,pattern" });
+
+  if (upsertErr) return { data: null, error: upsertErr.message };
 
   return { data: { updated }, error: null };
 }
@@ -688,7 +696,7 @@ export async function buildDsaZones(
   ] = await Promise.all([
     supabase
       .from("pattern_mastery")
-      .select("pattern, rating, rd, attempts")
+      .select("pattern, rating, rd, attempts, volatility, last_attempt_at")
       .eq("user_id", userId),
     supabase
       .from("problem_attempts")
@@ -731,8 +739,16 @@ export async function buildDsaZones(
   }
 
   // ── 3. Build lookup maps ───────────────────────────────────────────────────
+  // Normalize rd to its EFFECTIVE value (inactivity inflation applied) so the
+  // staleness/weakness/ZPD signals see decayed uncertainty, not the rd frozen
+  // at the last write — this is what lets a strong-but-stale pattern resurface.
+  const masteryRows = (masteryRes.data ?? []).map((r) => ({
+    ...r,
+    rd: currentRd(r.rd, r.volatility, r.last_attempt_at),
+  }));
+
   const masteryByPattern = new Map<CanonicalPattern, MasterySnapshot>(
-    (masteryRes.data ?? []).map((r) => [
+    masteryRows.map((r) => [
       r.pattern as CanonicalPattern,
       { rating: r.rating, rd: r.rd },
     ]),
@@ -746,7 +762,7 @@ export async function buildDsaZones(
   // difficulty target, never to weakness/priority/coach — so neglected-pattern
   // detection is unchanged while a strong learner still gets challenging
   // problems on a brand-new pattern.
-  const globalSkill = computeGlobalSkill(masteryRes.data ?? [], {
+  const globalSkill = computeGlobalSkill(masteryRows, {
     previousLevel: resolvePreviousLevel(settings.skill_level_cache),
   });
   const baseTargetSuccess = resolveTargetSuccess(settings.zpd_target_success);

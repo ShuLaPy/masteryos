@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { complete } from "@/lib/ai-router";
-import { weaknessFromMastery } from "@/lib/pattern-rating";
+import { currentRd, weaknessFromMastery } from "@/lib/pattern-rating";
 import { type CanonicalPattern } from "@/lib/pattern-map";
 
 const DIFFICULTY_MINUTES: Record<string, number> = {
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
       .contains("company_tags", [companyName]),
     supabase
       .from("pattern_mastery")
-      .select("pattern, rating, rd")
+      .select("pattern, rating, rd, volatility, last_attempt_at")
       .eq("user_id", user.id),
     supabase
       .from("problem_attempts")
@@ -129,10 +129,11 @@ export async function POST(request: Request) {
     });
   }
 
+  // Effective rd (read-time inactivity inflation) so stale patterns rank weaker.
   const masteryByPattern = new Map<CanonicalPattern, { rating: number; rd: number }>(
     (masteryRes.data ?? []).map((r) => [
       r.pattern as CanonicalPattern,
-      { rating: r.rating, rd: r.rd },
+      { rating: r.rating, rd: currentRd(r.rd, r.volatility, r.last_attempt_at) },
     ]),
   );
 

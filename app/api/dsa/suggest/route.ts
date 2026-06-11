@@ -20,7 +20,7 @@ import {
   type SkillLevelState,
 } from "@/lib/skill-level";
 import { CANONICAL_PATTERNS, type CanonicalPattern } from "@/lib/pattern-map";
-import { weaknessFromMastery } from "@/lib/pattern-rating";
+import { currentRd, weaknessFromMastery } from "@/lib/pattern-rating";
 
 /**
  * GET /api/dsa/suggest — problem_bank RAG suggestion (spec §9).
@@ -51,7 +51,7 @@ export async function GET() {
   const [masteryRes, attemptsRes, solvedRes, bankRes, settingsRes] = await Promise.all([
     supabase
       .from("pattern_mastery")
-      .select("pattern, rating, rd, attempts")
+      .select("pattern, rating, rd, attempts, volatility, last_attempt_at")
       .eq("user_id", user.id),
     supabase
       .from("problem_attempts")
@@ -84,8 +84,15 @@ export async function GET() {
   }
 
   // ── 2. Mastery map + coach computation ─────────────────────────────────────
+  // Effective rd: apply read-time inactivity inflation so stale patterns
+  // surface as weak/uncertain (see currentRd in lib/pattern-rating.ts).
+  const masteryRows = (masteryRes.data ?? []).map((r) => ({
+    ...r,
+    rd: currentRd(r.rd, r.volatility, r.last_attempt_at),
+  }));
+
   const masteryByPattern = new Map<CanonicalPattern, MasterySnapshot>(
-    (masteryRes.data ?? []).map((r) => [
+    masteryRows.map((r) => [
       r.pattern as CanonicalPattern,
       { rating: r.rating, rd: r.rd },
     ]),
@@ -110,7 +117,7 @@ export async function GET() {
     settings.skill_level_cache === "calibrating"
       ? (settings.skill_level_cache as SkillLevelState)
       : undefined;
-  const globalSkill = computeGlobalSkill(masteryRes.data ?? [], { previousLevel });
+  const globalSkill = computeGlobalSkill(masteryRows, { previousLevel });
   const zpdTargetFor = (p: CanonicalPattern): ZpdTarget =>
     zpdTarget(
       effectiveRating(defaultMastery(p), globalSkill.globalRating, globalSkill.globalRd),

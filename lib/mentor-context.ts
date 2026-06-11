@@ -40,7 +40,7 @@ import { estimateCardMinutes } from "@/lib/card-estimator";
 import { buildDsaZones } from "@/lib/dsa-planner";
 import { zpdTarget } from "@/lib/zpd";
 import { effectiveRating, type GlobalSkill } from "@/lib/skill-level";
-import { weaknessFromMastery, type Difficulty } from "@/lib/pattern-rating";
+import { currentRd, weaknessFromMastery, type Difficulty } from "@/lib/pattern-rating";
 import type { Database, Tables } from "@/types/database";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -493,7 +493,7 @@ export async function computeDsaRecommendation(
     buildDsaZones(supabase, userId),
     supabase
       .from("pattern_mastery")
-      .select("pattern, rating, rd")
+      .select("pattern, rating, rd, volatility, last_attempt_at")
       .eq("user_id", userId),
   ]);
 
@@ -505,19 +505,24 @@ export async function computeDsaRecommendation(
 
   // ZPD band reflects rd-adaptive targeting + cold-start transfer toward the
   // user's global rating — matching exactly what the planner selects against.
+  // rd is the EFFECTIVE value (read-time inactivity inflation via currentRd),
+  // consistent with buildDsaZones.
   const weakestPatterns: WeakPattern[] = (masteryRes.data ?? [])
-    .map((r) => ({
-      pattern: r.pattern,
-      rating: Math.round(r.rating),
-      weakness: weaknessFromMastery(r.rating, r.rd),
-      zpd: zpdTarget(
-        effectiveRating(
-          { rating: r.rating, rd: r.rd },
-          globalSkill.globalRating,
-          globalSkill.globalRd,
-        ),
-      ).band,
-    }))
+    .map((row) => {
+      const r = { ...row, rd: currentRd(row.rd, row.volatility, row.last_attempt_at) };
+      return {
+        pattern: r.pattern,
+        rating: Math.round(r.rating),
+        weakness: weaknessFromMastery(r.rating, r.rd),
+        zpd: zpdTarget(
+          effectiveRating(
+            { rating: r.rating, rd: r.rd },
+            globalSkill.globalRating,
+            globalSkill.globalRd,
+          ),
+        ).band,
+      };
+    })
     .sort((a, b) => b.weakness - a.weakness)
     .slice(0, 3);
 
