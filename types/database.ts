@@ -298,14 +298,21 @@ export type Database = {
       }
       lecture_schedules: {
         Row: {
+          attended_at: string | null
+          brain_dump: string | null
+          brain_dump_at: string | null
           bridge_cache: Json | null
           bridge_cache_key: string | null
           created_at: string
           extracted_concept_ids: string[] | null
+          gap_analysis: Json | null
           id: string
           is_attended: boolean | null
           notes: string | null
           prerequisite_concept_ids: string[] | null
+          pretest: Json | null
+          pretest_attempt: Json | null
+          pretest_taken_at: string | null
           scheduled_date: string
           title: string
           updated_at: string
@@ -313,14 +320,21 @@ export type Database = {
           week_number: number
         }
         Insert: {
+          attended_at?: string | null
+          brain_dump?: string | null
+          brain_dump_at?: string | null
           bridge_cache?: Json | null
           bridge_cache_key?: string | null
           created_at?: string
           extracted_concept_ids?: string[] | null
+          gap_analysis?: Json | null
           id?: string
           is_attended?: boolean | null
           notes?: string | null
           prerequisite_concept_ids?: string[] | null
+          pretest?: Json | null
+          pretest_attempt?: Json | null
+          pretest_taken_at?: string | null
           scheduled_date: string
           title: string
           updated_at?: string
@@ -328,14 +342,21 @@ export type Database = {
           week_number: number
         }
         Update: {
+          attended_at?: string | null
+          brain_dump?: string | null
+          brain_dump_at?: string | null
           bridge_cache?: Json | null
           bridge_cache_key?: string | null
           created_at?: string
           extracted_concept_ids?: string[] | null
+          gap_analysis?: Json | null
           id?: string
           is_attended?: boolean | null
           notes?: string | null
           prerequisite_concept_ids?: string[] | null
+          pretest?: Json | null
+          pretest_attempt?: Json | null
+          pretest_taken_at?: string | null
           scheduled_date?: string
           title?: string
           updated_at?: string
@@ -345,6 +366,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "lecture_schedules_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pattern_drill_attempts: {
+        Row: {
+          correct_patterns: string[]
+          created_at: string
+          guessed_patterns: string[]
+          id: string
+          is_correct: boolean
+          problem_slug: string
+          user_id: string
+        }
+        Insert: {
+          correct_patterns?: string[]
+          created_at?: string
+          guessed_patterns?: string[]
+          id?: string
+          is_correct: boolean
+          problem_slug: string
+          user_id: string
+        }
+        Update: {
+          correct_patterns?: string[]
+          created_at?: string
+          guessed_patterns?: string[]
+          id?: string
+          is_correct?: boolean
+          problem_slug?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pattern_drill_attempts_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -708,6 +767,53 @@ export type Database = {
           streak_last_date?: string | null
         }
         Relationships: []
+      }
+      weekly_competitions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          max_score: number | null
+          problem_slugs: string[]
+          problems: Json
+          score: number | null
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          max_score?: number | null
+          problem_slugs?: string[]
+          problems?: Json
+          score?: number | null
+          started_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          max_score?: number | null
+          problem_slugs?: string[]
+          problems?: Json
+          score?: number | null
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_competitions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       weekly_syntheses: {
         Row: {

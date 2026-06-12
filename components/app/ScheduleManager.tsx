@@ -3,13 +3,13 @@
 import { useState } from "react";
 import {
   CalendarClock, CheckCircle2, Circle, Edit2, Loader2, Plus,
-  Trash2, Upload, X,
+  Trash2, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { LectureScheduleForm, type Concept, type LectureFormData } from "@/components/app/LectureScheduleForm";
+import { LectureCaptureModal } from "@/components/app/LectureCaptureModal";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -63,112 +63,6 @@ function Modal({
         {children}
       </div>
     </div>
-  );
-}
-
-// ─── Attend modal ──────────────────────────────────────────────────────────
-
-function AttendModal({
-  lecture,
-  onClose,
-  onSuccess,
-}: {
-  lecture: LectureRow;
-  onClose: () => void;
-  onSuccess: (lectureId: string) => void;
-}) {
-  const [material, setMaterial] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [stage, setStage] = useState<"idle" | "ingesting">("idle");
-
-  async function handleSubmit() {
-    setSubmitting(true);
-    try {
-      const body = material.trim() ? { material: material.trim() } : {};
-      const hasNotes = !!material.trim();
-      if (hasNotes) setStage("ingesting");
-
-      const res = await fetch(`/api/lectures/${lecture.id}/attend`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      const json = (await res.json()) as { data: unknown; error: string | null };
-
-      if (!res.ok) {
-        if (res.status === 422) {
-          toast.error("AI couldn't extract enough concepts — try with more detailed notes");
-        } else {
-          toast.error(json.error ?? "Failed to mark as attended");
-        }
-        return;
-      }
-
-      toast.success(
-        hasNotes
-          ? "Lecture ingested — new SRS cards created!"
-          : "Lecture marked as attended"
-      );
-      onSuccess(lecture.id);
-      onClose();
-    } catch {
-      toast.error("Network error — please try again");
-    } finally {
-      setSubmitting(false);
-      setStage("idle");
-    }
-  }
-
-  return (
-    <Modal title={`Mark Attended · ${lecture.title}`} onClose={onClose} wide>
-      <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Paste your lecture notes or transcript below. The AI will extract concepts
-          and generate flashcards for immediate review. You can also skip this and
-          just mark it attended.
-        </p>
-
-        <Textarea
-          placeholder="Paste lecture notes, slides text, or transcript here… (optional)"
-          value={material}
-          onChange={(e) => setMaterial(e.target.value)}
-          rows={10}
-          className="bg-secondary/50 border-border/60 focus:border-primary/60 text-sm resize-none"
-          disabled={submitting}
-        />
-
-        {stage === "ingesting" && (
-          <p className="text-xs text-primary flex items-center gap-2">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            Extracting concepts and generating cards — this may take 10–20 seconds…
-          </p>
-        )}
-
-        <div className="flex gap-3 pt-1">
-          <Button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="bg-primary hover:bg-primary/90 h-9"
-          >
-            {submitting ? (
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-            ) : (
-              <Upload className="w-4 h-4 mr-2" />
-            )}
-            {material.trim() ? "Upload & ingest" : "Mark attended"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={submitting}
-            className="h-9 border-border/60 text-muted-foreground"
-          >
-            Cancel
-          </Button>
-        </div>
-      </div>
-    </Modal>
   );
 }
 
@@ -525,9 +419,9 @@ export function ScheduleManager({ initialLectures, concepts }: ScheduleManagerPr
         </Modal>
       )}
 
-      {/* Attend modal */}
+      {/* Capture modal (brain dump → notes ingestion) */}
       {modal === "attend" && selected && (
-        <AttendModal
+        <LectureCaptureModal
           lecture={selected}
           onClose={closeModal}
           onSuccess={handleAttendSuccess}

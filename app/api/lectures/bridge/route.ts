@@ -22,6 +22,9 @@ type LectureRow = {
   bridge_cache: BridgeCache | null;
   bridge_cache_key: string | null;
   updated_at: string;
+  pretest: unknown;
+  pretest_attempt: unknown;
+  pretest_taken_at: string | null;
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -58,8 +61,45 @@ function buildCacheKey(
   const recentIds = [...(mostRecent?.extracted_concept_ids ?? [])].sort().join(",");
   const recentUpdated = mostRecent?.updated_at ?? "";
   const nextPrereqIds = [...(next?.prerequisite_concept_ids ?? [])].sort().join(",");
-  const raw = `${recentIds}|${recentUpdated}|${nextPrereqIds}|${prereqConceptsVersion}`;
+  // The next lecture's pretest feeds the prompt context, so its version must
+  // invalidate the cache too — otherwise a pre-pretest bridge would serve stale.
+  const nextPretestVersion = `${next?.pretest_taken_at ?? ""}:${
+    (next?.pretest as { generated_at?: string } | null)?.generated_at ?? ""
+  }`;
+  const raw = `${recentIds}|${recentUpdated}|${nextPrereqIds}|${prereqConceptsVersion}|${nextPretestVersion}`;
   return createHash("sha256").update(raw).digest("hex");
+}
+
+/**
+ * Render the next lecture's taken pretest as extra prompt context, so the
+ * bridge can speak to what the student wondered about before the lecture.
+ */
+function buildPretestContext(next: LectureRow | null): string {
+  if (!next || !next.pretest_taken_at) return "";
+  const questions = (next.pretest as { questions?: { q?: unknown }[] } | null)
+    ?.questions;
+  const answers = (
+    next.pretest_attempt as {
+      answers?: { index?: unknown; answer?: unknown; self_grade?: unknown }[];
+    } | null
+  )?.answers;
+  if (!Array.isArray(questions) || !Array.isArray(answers) || answers.length === 0) {
+    return "";
+  }
+  const lines = answers
+    .filter((a) => typeof a?.index === "number" && questions[a.index as number])
+    .map(
+      (a) =>
+        `- Q: ${String(questions[a.index as number]?.q ?? "")}\n` +
+        `  Student's guess: ${String(a.answer ?? "(blank)")} ` +
+        `(self-graded: ${String(a.self_grade ?? "unknown")})`
+    );
+  if (lines.length === 0) return "";
+  return (
+    `\n\nBefore this lecture the student attempted a pretest:\n${lines.join("\n")}\n` +
+    `Where relevant, address their guesses — confirm what they got right and ` +
+    `correct what they got wrong.`
+  );
 }
 
 // ─── AI prompt builders ────────────────────────────────────────────────────
@@ -191,7 +231,7 @@ export async function GET(request: NextRequest) {
   const { data: lectures } = await supabase
     .from("lecture_schedules")
     .select(
-      "id, title, week_number, scheduled_date, extracted_concept_ids, prerequisite_concept_ids, bridge_cache, bridge_cache_key, updated_at"
+      "id, title, week_number, scheduled_date, extracted_concept_ids, prerequisite_concept_ids, bridge_cache, bridge_cache_key, updated_at, pretest, pretest_attempt, pretest_taken_at"
     )
     .eq("user_id", user.id)
     .in("id", idsToLoad);
@@ -274,7 +314,7 @@ export async function GET(request: NextRequest) {
 
   const { data: synthesis, error: aiError } = await generateText(
     promptParts.systemPrompt,
-    promptParts.userMessage,
+    promptParts.userMessage + buildPretestContext(next),
     1500
   );
 

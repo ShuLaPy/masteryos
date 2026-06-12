@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CalendarClock, GraduationCap, Settings2, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { ScheduleManager } from "@/components/app/ScheduleManager";
+import { LectureLifecycle } from "@/components/app/LectureLifecycle";
 import { ScheduleSettingsPanel, type BridgeSettings } from "@/components/app/ScheduleSettingsPanel";
 import { ReadinessDashboard } from "@/components/app/ReadinessDashboard";
 
@@ -110,6 +111,9 @@ export default async function SchedulePage() {
           </Link>
         </div>
       </div>
+
+      {/* ── Active lecture lifecycles (Prep → Attend → Capture → Reinforce) ── */}
+      <LectureLifecycle />
 
       {/* ── Schedule manager (table + modals) ───────────────────── */}
       <ScheduleManager initialLectures={lectures} concepts={concepts} />

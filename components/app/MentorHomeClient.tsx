@@ -9,6 +9,7 @@ import {
   Brain, Flame, BookOpen, Code2, Cpu, FlaskConical,
   BarChart3, Send, Loader2, Sparkles, Target, TrendingUp,
   ArrowRight, Zap, GraduationCap, CalendarClock, AlertTriangle,
+  AlarmClock,
 } from "lucide-react";
 import { ZonePlanView } from "@/components/app/ZonePlanView";
 import { Button } from "@/components/ui/button";
@@ -466,6 +467,35 @@ export default function MentorHomeClient({ ctx }: { ctx: MentorContext }) {
           actualMinutes={ctx.commitment.actualMinutes}
           compliancePct={ctx.commitment.compliancePct}
         />
+
+        {/* Recall window nudge — first review within ~24h locks lecture material in */}
+        {ctx.lectureIntel?.recentAttended?.reinforcement && (
+          <Link href="/review">
+            <div className="glass rounded-xl p-4 border-amber-500/30 hover:border-amber-500/50 transition-colors cursor-pointer">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0">
+                  <AlarmClock className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">
+                    {ctx.lectureIntel.recentAttended.reinforcement.windowLabel} recall
+                    window —{" "}
+                    {ctx.lectureIntel.recentAttended.reinforcement.cardsRemaining} card
+                    {ctx.lectureIntel.recentAttended.reinforcement.cardsRemaining === 1
+                      ? ""
+                      : "s"}{" "}
+                    left
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {ctx.lectureIntel.recentAttended.title} — review now before the
+                    forgetting curve bites
+                  </p>
+                </div>
+                <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
+              </div>
+            </div>
+          </Link>
+        )}
 
         {/* Today's study plan zones */}
         <ZonePlanView rawPlan={ctx.generatedPlan} />

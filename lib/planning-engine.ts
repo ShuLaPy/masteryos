@@ -286,6 +286,7 @@ export interface SrsCard {
 export type PlanItemReason =
   | "weak_prereq"
   | "immediate"
+  | "immediate_missed"
   | "cold_start"
   | "cold_start_primer"
   | "overdue"
@@ -675,6 +676,25 @@ function cardRetrievability(card: SrsCard): number {
   return getRetrievability(dbCardToFSRS(card));
 }
 
+/**
+ * Parse lecture_schedules.gap_analysis (jsonb, written by the attend route) into
+ * conceptId → recall status. Unknown/malformed shapes yield an empty map (no boost).
+ */
+function parseGapStatuses(gapAnalysis: unknown): Map<string, string> {
+  const statuses = new Map<string, string>();
+  if (!gapAnalysis || typeof gapAnalysis !== "object") return statuses;
+  const concepts = (gapAnalysis as { concepts?: unknown }).concepts;
+  if (!Array.isArray(concepts)) return statuses;
+  for (const entry of concepts) {
+    const conceptId = (entry as { concept_id?: unknown })?.concept_id;
+    const status = (entry as { status?: unknown })?.status;
+    if (typeof conceptId === "string" && typeof status === "string") {
+      statuses.set(conceptId, status);
+    }
+  }
+  return statuses;
+}
+
 /** Build a zone plan item from a card. Priority defaults to urgency (1 − R). */
 function cardToItem(card: CardRow, reason: PlanItemReason, priority?: number): PlanItem {
   const r = cardRetrievability(card);
@@ -895,12 +915,26 @@ export async function generateDailyPlanForUser(
   }
 
   // ── 5a. Immediate Recall zone — cards from the most-recent lecture's concepts ─
+  // Concepts the student missed/distorted in their post-lecture free recall get a
+  // priority boost (max 1.5 — below the 2.0 cold-start sentinel) so fillZone
+  // fronts them within the zone.
   const recallConceptIds = new Set(mostRecentLecture?.extracted_concept_ids ?? []);
+  const gapStatuses = parseGapStatuses(mostRecentLecture?.gap_analysis);
   const immediateItems: PlanItem[] = cards
     .filter(
       (c) => c.source_type === "aiml_concept" && recallConceptIds.has(c.source_id)
     )
-    .map((c) => cardToItem(c, "immediate"));
+    .map((c) => {
+      const status = gapStatuses.get(c.source_id);
+      const boost =
+        status === "missed" || status === "distorted"
+          ? 0.5
+          : status === "partial"
+            ? 0.25
+            : 0;
+      const item = cardToItem(c, boost >= 0.5 ? "immediate_missed" : "immediate");
+      return boost > 0 ? { ...item, priority: item.priority + boost } : item;
+    });
 
   // ── 5b. Prerequisite Runway zone — cold-start primers + priority-scored prereqs ─
   // Cold start (spec §6): when the next lecture is imminent (within 7 days), each

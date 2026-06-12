@@ -4,6 +4,7 @@ import { CalendarClock, GraduationCap, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { dbCardToFSRS, getRetrievability } from "@/lib/fsrs";
 import { PreClassPrepCard } from "@/components/app/PreClassPrepCard";
+import { PretestCard } from "@/components/app/PretestCard";
 
 export const metadata = { title: "Pre-Class Prep — MasteryOS" };
 
@@ -214,6 +215,9 @@ async function PrepBody({
         <h2 className="text-xl font-semibold text-foreground">{lecture.title}</h2>
         <p className="text-sm text-muted-foreground mt-1">{lectureDate}</p>
       </div>
+
+      {/* Pre-lecture pretest (unlocks in the final 48h — pretesting effect) */}
+      <PretestCard lectureId={lecture.id} />
 
       {nothingToReview ? (
         <div className="glass rounded-2xl p-8 text-center border-emerald-500/20">

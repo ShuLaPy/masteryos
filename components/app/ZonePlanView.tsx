@@ -46,6 +46,7 @@ function asGeneratedPlan(v: unknown): GeneratedPlan | null {
 
 const REASON_META: Record<string, { label: string; color: string }> = {
   immediate:        { label: "Immediate Recall",  color: "text-emerald-400" },
+  immediate_missed: { label: "Missed in recall",  color: "text-red-400"    },
   weak_prereq:      { label: "Weak prereq",       color: "text-amber-400"  },
   cold_start:       { label: "Cold start",         color: "text-blue-400"   },
   cold_start_primer:{ label: "Primer",             color: "text-blue-400"   },

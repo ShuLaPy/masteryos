@@ -37,6 +37,10 @@ import {
 } from "@/lib/planning-engine";
 import { dbCardToFSRS, getRetrievability } from "@/lib/fsrs";
 import { estimateCardMinutes } from "@/lib/card-estimator";
+import {
+  computeReinforcementCheckpoints,
+  type CheckpointWindow,
+} from "@/lib/lecture-lifecycle";
 import { buildDsaZones } from "@/lib/dsa-planner";
 import { zpdTarget } from "@/lib/zpd";
 import { effectiveRating, type GlobalSkill } from "@/lib/skill-level";
@@ -79,6 +83,13 @@ export interface UpcomingLectureIntel {
   prereqs: PrereqStatus[];
 }
 
+/** The currently open recall window for the most-recent lecture (forgetting curve). */
+export interface ReinforcementNudge {
+  windowLabel: CheckpointWindow;
+  closesAt: string;
+  cardsRemaining: number;
+}
+
 export interface RecentLectureIntel {
   id: string;
   title: string;
@@ -87,6 +98,8 @@ export interface RecentLectureIntel {
   conceptCount: number;
   /** Avg retrievability across the lecture's reviewed concept cards (null if none). */
   avgRetrievability: number | null;
+  /** Open 24h/72h/7d recall checkpoint with cards left, if any. */
+  reinforcement: ReinforcementNudge | null;
 }
 
 export interface TopPriorityAction {
@@ -256,7 +269,7 @@ export async function computeLectureIntelligence(
     supabase
       .from("lecture_schedules")
       .select(
-        "id, title, scheduled_date, week_number, is_attended, prerequisite_concept_ids, extracted_concept_ids"
+        "id, title, scheduled_date, week_number, is_attended, attended_at, prerequisite_concept_ids, extracted_concept_ids"
       )
       .eq("user_id", userId)
       .order("scheduled_date", { ascending: true })
@@ -438,6 +451,37 @@ export async function computeLectureIntelligence(
       const reviewed = (cardsByConcept.get(conceptId) ?? []).filter(isReviewed);
       for (const c of reviewed) reviewedRs.push(getRetrievability(dbCardToFSRS(c)));
     }
+
+    // Open recall window for the dashboard's reinforcement nudge. Read-only over
+    // the reviews log — FSRS scheduling is untouched. attended_at anchors the
+    // windows; legacy rows attended before it existed simply get no nudge.
+    let reinforcement: ReinforcementNudge | null = null;
+    const attendedAt = (mostRecent as { attended_at?: string | null }).attended_at;
+    const lectureCardIds = conceptIds.flatMap((id) =>
+      (cardsByConcept.get(id) ?? []).map((c) => c.id)
+    );
+    if (attendedAt && lectureCardIds.length > 0) {
+      const { data: reviewRows } = await supabase
+        .from("reviews")
+        .select("card_id, created_at")
+        .eq("user_id", userId)
+        .in("card_id", lectureCardIds)
+        .gte("created_at", attendedAt);
+      const checkpoints = computeReinforcementCheckpoints(
+        attendedAt,
+        lectureCardIds,
+        reviewRows ?? []
+      );
+      const openCp = checkpoints.find((cp) => cp.status === "open");
+      if (openCp && openCp.cardsTotal - openCp.cardsReviewed > 0) {
+        reinforcement = {
+          windowLabel: openCp.window,
+          closesAt: openCp.closesAt,
+          cardsRemaining: openCp.cardsTotal - openCp.cardsReviewed,
+        };
+      }
+    }
+
     recentAttended = {
       id: mostRecent.id,
       title: mostRecent.title,
@@ -448,6 +492,7 @@ export async function computeLectureIntelligence(
         reviewedRs.length > 0
           ? reviewedRs.reduce((s, r) => s + r, 0) / reviewedRs.length
           : null,
+      reinforcement,
     };
   }
 

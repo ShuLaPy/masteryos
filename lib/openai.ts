@@ -44,12 +44,13 @@ export async function generateText(
 export async function generateJSON<T>(
   systemPrompt: string,
   userMessage: string,
-  maxTokens = 2048
+  maxTokens = 2048,
+  model = "gpt-4o-mini"
 ): Promise<{ data: T | null; error: string | null }> {
   const fullSystem = `${systemPrompt}\n\nIMPORTANT: Respond with ONLY valid JSON, no markdown, no explanation, no code blocks.`;
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model,
       max_tokens: maxTokens,
       response_format: { type: "json_object" },
       messages: [

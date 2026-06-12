@@ -11,20 +11,57 @@ type RouteContext = { params: Promise<{ id: string }> };
 // Concept dedup threshold (AGENTS.md §"Concept dedup on ingestion" / spec §8).
 const DEDUP_SIMILARITY_THRESHOLD = 0.85;
 const MIN_DISTINCT_CONCEPTS = 3; // spec §6 / Req 6 — retryable below this
+const MIN_CARDS_PER_CONCEPT = 2;
+
+// Free-recall comparison outcome per concept (forgetting-curve capture loop).
+type RecallStatus = "recalled" | "partial" | "missed" | "distorted" | "n/a";
+const RECALL_STATUSES: RecallStatus[] = [
+  "recalled",
+  "partial",
+  "missed",
+  "distorted",
+  "n/a",
+];
+
+// Card depth levels, in seeding order — definition first, example last.
+const CARD_LEVELS = ["definition", "application", "connection", "example"];
+
+interface ExtractedCard {
+  front: string;
+  back: string;
+  level: string;
+}
 
 interface ExtractedConcept {
   name: string;
   definition: string;
-  front: string;
-  back: string;
+  recall_status: RecallStatus;
+  recall_note: string;
+  cards: ExtractedCard[];
 }
 
 interface IngestionResult {
   concepts: ExtractedConcept[];
 }
 
+// Shape stored in lecture_schedules.gap_analysis (jsonb).
+interface GapAnalysisEntry {
+  concept_id: string;
+  name: string;
+  status: RecallStatus;
+  note: string;
+}
+
 interface UserSettings {
   timezone?: unknown;
+}
+
+interface PretestData {
+  questions?: { q?: unknown; model_answer?: unknown }[];
+}
+
+interface PretestAttemptData {
+  answers?: { index?: unknown; answer?: unknown; self_grade?: unknown }[];
 }
 
 /** Validate an IANA timezone via Intl; fall back to UTC (spec §9.4, AGENTS.md). */
@@ -40,12 +77,62 @@ function resolveTimeZone(tz: unknown): string {
   return "UTC";
 }
 
+/** How many seed cards a concept earns: weaker recall → more cards. */
+function seedCardCount(status: RecallStatus): number {
+  switch (status) {
+    case "missed":
+    case "distorted":
+      return 4;
+    case "partial":
+      return 3;
+    default: // recalled, n/a
+      return 2;
+  }
+}
+
+/** Order cards definition → application → connection → example (unknown levels last). */
+function orderCardsByLevel(cards: ExtractedCard[]): ExtractedCard[] {
+  return [...cards].sort((a, b) => {
+    const ai = CARD_LEVELS.indexOf(a.level);
+    const bi = CARD_LEVELS.indexOf(b.level);
+    return (ai === -1 ? CARD_LEVELS.length : ai) - (bi === -1 ? CARD_LEVELS.length : bi);
+  });
+}
+
+/** Render the taken pretest as prompt context so ingestion can close the loop. */
+function buildPretestContext(pretest: unknown, attempt: unknown): string {
+  const questions = (pretest as PretestData | null)?.questions;
+  const answers = (attempt as PretestAttemptData | null)?.answers;
+  if (!Array.isArray(questions) || !Array.isArray(answers) || answers.length === 0) {
+    return "";
+  }
+  const lines = answers
+    .filter((a) => typeof a?.index === "number" && questions[a.index as number])
+    .map((a) => {
+      const q = questions[a.index as number];
+      return `- Q: ${String(q?.q ?? "")}\n  Student's pre-lecture answer: ${String(
+        a.answer ?? "(blank)"
+      )} (self-graded: ${String(a.self_grade ?? "unknown")})`;
+    });
+  if (lines.length === 0) return "";
+  return (
+    `\n\nBefore the lecture the student attempted these pretest questions:\n` +
+    lines.join("\n") +
+    `\nWhere an extracted concept answers one of these questions, mention it in that ` +
+    `concept's "recall_note" (e.g. "answers your pretest question about X").`
+  );
+}
+
 // POST /api/lectures/[id]/attend
 //
-// Two variants:
-//   • No `material` in body  → Part 1: mark the lecture attended (awaiting upload).
-//   • { material: string }   → Part 2: AI ingestion pipeline (spec §6/§8, Req 6) —
-//     extract concepts, dedup into the graph, create seed cards, regenerate plan.
+// Three variants (capture loop — free recall before notes):
+//   • No body fields          → mark the lecture attended (awaiting capture).
+//   • { brain_dump: string }  → Step 1: store the student's free recall, written
+//     WITHOUT notes. Must happen before ingestion.
+//   • { material: string }    → Step 2: AI ingestion pipeline (spec §6/§8, Req 6) —
+//     extract concepts, compare against the brain dump (gap analysis), dedup into
+//     the graph, seed 2–4 multi-level cards per concept (more for missed concepts),
+//     regenerate the plan.
 export async function POST(req: NextRequest, { params }: RouteContext) {
   const { id } = await params;
   const supabase = await createClient();
@@ -55,7 +142,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   if (!user) return new Response("Unauthorized", { status: 401 });
 
   // Body is optional for the attend-state variant; tolerate empty/invalid JSON.
-  let body: { material?: unknown } = {};
+  let body: { material?: unknown; brain_dump?: unknown } = {};
   try {
     body = await req.json();
   } catch {
@@ -64,11 +151,15 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const material =
     typeof body?.material === "string" ? body.material.trim() : "";
   const hasMaterial = material.length > 0;
+  const brainDumpInput =
+    typeof body?.brain_dump === "string" ? body.brain_dump.trim() : "";
 
   // Verify the lecture exists and belongs to the current user
   const { data: lecture, error: fetchError } = await supabase
     .from("lecture_schedules")
-    .select("id, is_attended, extracted_concept_ids")
+    .select(
+      "id, is_attended, attended_at, extracted_concept_ids, brain_dump, pretest, pretest_attempt"
+    )
     .eq("id", id)
     .eq("user_id", user.id)
     .single();
@@ -77,7 +168,54 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     return Response.json({ data: null, error: "Not found" }, { status: 404 });
   }
 
-  // ── Variant A: attend-state only (Part 1) ───────────────────────────────────
+  const nowIso = new Date().toISOString();
+  // attended_at anchors the 24h/72h/7d reinforcement windows — set once, never shift.
+  const attendedAt = lecture.attended_at ?? nowIso;
+  const alreadyIngested = (lecture.extracted_concept_ids ?? []).length > 0;
+
+  // ── Variant: brain dump only (capture Step 1) ───────────────────────────────
+  if (!hasMaterial && brainDumpInput.length > 0) {
+    // Free recall is only meaningful before the notes are ingested.
+    if (alreadyIngested) {
+      return Response.json(
+        {
+          data: null,
+          error: "material already ingested; brain dump must come first",
+        },
+        { status: 409 }
+      );
+    }
+
+    const { error: updateError } = await supabase
+      .from("lecture_schedules")
+      .update({
+        is_attended: true,
+        attended_at: attendedAt,
+        brain_dump: brainDumpInput,
+        brain_dump_at: nowIso,
+        updated_at: nowIso,
+      })
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    if (updateError) {
+      return Response.json(
+        { data: null, error: updateError.message },
+        { status: 500 }
+      );
+    }
+
+    return Response.json({
+      data: {
+        lectureId: lecture.id,
+        brainDumpSaved: true,
+        awaitingMaterial: true,
+      },
+      error: null,
+    });
+  }
+
+  // ── Variant A: attend-state only ────────────────────────────────────────────
   if (!hasMaterial) {
     // Idempotent re-attend: already attended → no duplicate cards, no re-trigger
     if (lecture.is_attended) {
@@ -93,7 +231,11 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
     const { error: updateError } = await supabase
       .from("lecture_schedules")
-      .update({ is_attended: true, updated_at: new Date().toISOString() })
+      .update({
+        is_attended: true,
+        attended_at: attendedAt,
+        updated_at: nowIso,
+      })
       .eq("id", id)
       .eq("user_id", user.id);
 
@@ -110,10 +252,10 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     });
   }
 
-  // ── Variant B: AI ingestion pipeline (Part 2) ───────────────────────────────
+  // ── Variant B: AI ingestion pipeline (capture Step 2) ───────────────────────
 
   // Idempotent re-ingestion: concepts already extracted → don't duplicate cards.
-  if ((lecture.extracted_concept_ids ?? []).length > 0) {
+  if (alreadyIngested) {
     return Response.json({
       data: {
         lectureId: lecture.id,
@@ -126,30 +268,74 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     });
   }
 
-  // 1. Extract concepts + flashcard content via gpt-4o.
+  // Brain dump from this request wins over a previously stored one.
+  const brainDump = brainDumpInput.length > 0 ? brainDumpInput : (lecture.brain_dump ?? "").trim();
+  const hasBrainDump = brainDump.length > 0;
+
+  // 1. Single AI pass: extract concepts + compare against free recall + write
+  //    multi-level cards. 5 concepts × 4 cards exceeds 2048 tokens → 4096 + gpt-4o.
+  const pretestContext = buildPretestContext(
+    lecture.pretest,
+    lecture.pretest_attempt
+  );
   const { data: extraction } = await generateJSON<IngestionResult>(
-    "You are an expert AI tutor who extracts core concepts from lecture material and writes spaced-repetition flashcards.",
-    `Extract 3–5 distinct core concepts from this lecture material and generate ` +
-      `front-and-back flashcard content for each. Return JSON: ` +
-      `{ "concepts": [{ "name", "definition", "front", "back" }] }\n\n` +
-      `Lecture material:\n${material}`
+    "You are an expert AI tutor. You extract core concepts from lecture material, " +
+      "compare them against the student's free-recall brain dump, and write " +
+      "multi-level spaced-repetition flashcards.",
+    `Extract 3–5 distinct core concepts from the lecture material below.\n` +
+      `For each concept return:\n` +
+      `- "name" and "definition"\n` +
+      `- "recall_status": compare the concept against the student's brain dump — ` +
+      `"recalled" (present and accurate), "partial" (mentioned but incomplete), ` +
+      `"missed" (absent), "distorted" (present but wrong). ` +
+      `If no brain dump is provided, use "n/a" for every concept.\n` +
+      `- "recall_note": one sentence on what was missing or wrong (empty string if recalled)\n` +
+      `- "cards": exactly 4 flashcards spanning levels — one "definition", ` +
+      `one "application" (why/when it's used), one "connection" (link to a ` +
+      `prerequisite or adjacent concept), one "example" (worked example or edge case).\n` +
+      `Return JSON: { "concepts": [{ "name", "definition", "recall_status", ` +
+      `"recall_note", "cards": [{ "front", "back", "level" }] }] }` +
+      pretestContext +
+      `\n\nStudent's brain dump (free recall, written without notes):\n` +
+      (hasBrainDump ? brainDump : "(none provided)") +
+      `\n\nLecture material:\n${material}`,
+    4096,
+    "gpt-4o"
   );
 
-  // 2. Validate: keep only well-formed, distinct (by name) concepts.
+  // 2. Validate: keep only well-formed, distinct (by name) concepts with ≥2 cards.
   const seenNames = new Set<string>();
   const concepts: ExtractedConcept[] = (extraction?.concepts ?? [])
-    .filter(
-      (c): c is ExtractedConcept =>
-        !!c &&
-        typeof c.name === "string" &&
-        c.name.trim().length > 0 &&
-        typeof c.front === "string" &&
-        c.front.trim().length > 0 &&
-        typeof c.back === "string" &&
-        c.back.trim().length > 0
-    )
+    .map((c) => {
+      if (!c || typeof c.name !== "string" || c.name.trim().length === 0) {
+        return null;
+      }
+      const cards = (Array.isArray(c.cards) ? c.cards : []).filter(
+        (card): card is ExtractedCard =>
+          !!card &&
+          typeof card.front === "string" &&
+          card.front.trim().length > 0 &&
+          typeof card.back === "string" &&
+          card.back.trim().length > 0
+      );
+      if (cards.length < MIN_CARDS_PER_CONCEPT) return null;
+      const status: RecallStatus =
+        hasBrainDump && RECALL_STATUSES.includes(c.recall_status)
+          ? c.recall_status
+          : hasBrainDump
+            ? "missed" // brain dump given but AI returned junk status → treat as gap
+            : "n/a";
+      return {
+        name: c.name.trim(),
+        definition: typeof c.definition === "string" ? c.definition.trim() : "",
+        recall_status: status,
+        recall_note: typeof c.recall_note === "string" ? c.recall_note.trim() : "",
+        cards: orderCardsByLevel(cards),
+      };
+    })
+    .filter((c): c is ExtractedConcept => c !== null)
     .filter((c) => {
-      const key = c.name.trim().toLowerCase();
+      const key = c.name.toLowerCase();
       if (seenNames.has(key)) return false;
       seenNames.add(key);
       return true;
@@ -180,8 +366,8 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const resolvedConceptIds: string[] = [];
 
   for (const c of concepts) {
-    const name = c.name.trim();
-    const definition = c.definition?.trim() ?? "";
+    const name = c.name;
+    const definition = c.definition;
     const embeddingContent = [name, definition].filter(Boolean).join("\n");
 
     const { data: embedding } = await generateEmbedding(embeddingContent);
@@ -247,17 +433,20 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     resolvedConceptIds.push(newConcept.id);
   }
 
-  // 4. Create one seed card per concept (user-scoped client → RLS).
-  const dbCards = concepts.map((c, i) => ({
-    user_id: user.id,
-    card_type: "concept",
-    front: c.front.trim(),
-    back: c.back.trim(),
-    source_type: "aiml_concept",
-    source_id: resolvedConceptIds[i],
-    ...fsrsCardToDB(newCard()),
-    due: dueToday, // due today in the user's timezone (overrides newCard default)
-  }));
+  // 4. Seed cards — weaker recall earns more cards (missed 4, partial 3, else 2),
+  //    taken in level order (definition → application → connection → example).
+  const dbCards = concepts.flatMap((c, i) =>
+    c.cards.slice(0, seedCardCount(c.recall_status)).map((card) => ({
+      user_id: user.id,
+      card_type: "concept",
+      front: card.front.trim(),
+      back: card.back.trim(),
+      source_type: "aiml_concept",
+      source_id: resolvedConceptIds[i],
+      ...fsrsCardToDB(newCard()),
+      due: dueToday, // due today in the user's timezone (overrides newCard default)
+    }))
+  );
 
   const { error: cardsError } = await supabase.from("srs_cards").insert(dbCards);
   if (cardsError) {
@@ -267,14 +456,30 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     );
   }
 
-  // 5. Record raw material + extracted concept ids on the lecture.
+  // 5. Record material, extracted concept ids, and gap analysis on the lecture.
+  //    gap_analysis stores RESOLVED concept ids (post-dedup) so the planning
+  //    engine can match boosts to cards by source_id.
+  const gapEntries: GapAnalysisEntry[] = concepts.map((c, i) => ({
+    concept_id: resolvedConceptIds[i],
+    name: c.name,
+    status: c.recall_status,
+    note: c.recall_note,
+  }));
+
   const { error: lectureUpdateError } = await supabase
     .from("lecture_schedules")
     .update({
       is_attended: true,
+      attended_at: attendedAt,
       notes: material,
+      ...(brainDumpInput.length > 0
+        ? { brain_dump: brainDumpInput, brain_dump_at: nowIso }
+        : {}),
       extracted_concept_ids: resolvedConceptIds,
-      updated_at: new Date().toISOString(),
+      gap_analysis: hasBrainDump
+        ? { analyzed_at: nowIso, concepts: gapEntries }
+        : null,
+      updated_at: nowIso,
     })
     .eq("id", id)
     .eq("user_id", user.id);
@@ -299,12 +504,26 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     // Plan regeneration is non-critical to ingestion success.
   }
 
-  // 7. Return ingestion summary.
+  // 7. Return ingestion summary (+ recall gap breakdown when a brain dump exists).
+  const gapSummary = hasBrainDump
+    ? gapEntries.reduce(
+        (acc, e) => {
+          if (e.status === "recalled") acc.recalled += 1;
+          else if (e.status === "partial") acc.partial += 1;
+          else if (e.status === "distorted") acc.distorted += 1;
+          else acc.missed += 1;
+          return acc;
+        },
+        { recalled: 0, partial: 0, missed: 0, distorted: 0 }
+      )
+    : null;
+
   return Response.json({
     data: {
       lectureId: lecture.id,
       conceptsExtracted: resolvedConceptIds.length,
       cardsCreated: dbCards.length,
+      gapSummary,
       planRegenerated,
     },
     error: null,
