@@ -11,6 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export interface CheckInProps {
   streakCount: number;
@@ -39,6 +41,14 @@ export default function MorningCheckInModal({
   const [loading, setLoading] = useState(false);
 
   const dismissKey = `checkin-dismissed-${new Date().toISOString().split("T")[0]}`;
+
+  function getGreeting() {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    if (hour < 21) return "Good evening";
+    return "Good night";
+  }
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -79,7 +89,7 @@ export default function MorningCheckInModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Sparkles className="w-5 h-5 text-primary" />
-            Good morning, {displayName.split(" ")[0]}
+            {getGreeting()}, {displayName.split(" ")[0]}
           </DialogTitle>
         </DialogHeader>
 
@@ -88,10 +98,12 @@ export default function MorningCheckInModal({
           animate={{ opacity: 1, y: 0 }}
           className="space-y-4"
         >
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            {mentorMessage ??
-              "Ready to build your streak today? Start with a focused review session."}
-          </p>
+          <div className="text-sm text-muted-foreground leading-relaxed prose prose-sm prose-invert max-w-none [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {mentorMessage ??
+                "Ready to build your streak today? Start with a focused review session."}
+            </ReactMarkdown>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="glass rounded-xl p-3 text-center">
