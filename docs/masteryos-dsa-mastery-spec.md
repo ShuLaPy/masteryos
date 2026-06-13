@@ -197,7 +197,7 @@ This reuses your existing mentor AI; it just gets a DSA-specific computed payloa
 ## 11. Model choice (you said you'll use a powerful model)
 
 Tier by task, behind a small `lib/ai-router.ts` so the rest of the code is model-agnostic:
-- **Routine, high-volume** (recognition/insight card generation): keep `gpt-4o` — cheap, sufficient.
+- **Routine, high-volume** (recognition/insight card generation): keep `gpt-5.4` — cheap, sufficient.
 - **High-reasoning** (problem selection rationale, weekly coaching synthesis): use a stronger model. Your `ANTHROPIC_API_KEY` is already reserved in env — route these tasks to Claude via a new `lib/anthropic.ts` following the same `{ data, error }` pattern as `lib/openai.ts`.
 
 `ai-router.ts` exposes `complete({ task, ... })` and picks the model per task. This keeps `CLAUDE.md`'s "AI calls server-side only" rule and avoids scattering model names through the codebase.
@@ -323,7 +323,7 @@ Surface these on the DSA track page weekly. This is the proof the system is work
 1. **Problem bank source** — seed from a canonical list (NeetCode 150 / Blind 75 expanded) for v1? It covers all patterns at all difficulties and is a one-time seed. Or do you have your own list in `dsa_problems` to promote into the bank? *(Needs your answer before §9 works.)*
 2. **Outcome reporting** — self-reported outcome (Again/Hard/Good/Easy-style) mapped to the §4.2 score, since we can't verify a real LeetCode submission. Acceptable for v1?
 3. **Glicko-2 lib vs hand-rolled** — implement the ~50-line algorithm directly (no dependency risk) or adopt a maintained library? Recommend hand-rolled for control; verify any library before use.
-4. **Model routing** — confirm using Claude (`ANTHROPIC_API_KEY`) for high-reasoning tasks and gpt-4o for card generation, behind `ai-router.ts`.
+4. **Model routing** — confirm using Claude (`ANTHROPIC_API_KEY`) for high-reasoning tasks and gpt-5.4 for card generation, behind `ai-router.ts`.
 5. **DSA goal minutes** — separate `dsa_daily_goal_minutes`, or carve the DSA zones out of the existing daily goal alongside the AIML zones?
 
 ---

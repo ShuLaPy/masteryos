@@ -38,7 +38,7 @@ API routes are under `app/api/` and are server-only — all AI and DB calls happ
 | Purpose | Library | Entry point |
 |---------|---------|-------------|
 | Spaced repetition | `ts-fsrs` | `lib/fsrs.ts` |
-| AI (chat, Feynman, mentor) | OpenAI SDK (`gpt-4o`) | `lib/openai.ts` |
+| AI (chat, Feynman, mentor) | OpenAI SDK (`gpt-5.4`) | `lib/openai.ts` |
 | Embeddings + semantic search | OpenAI (`text-embedding-3-small`, 1536 dims) | `lib/openai.ts` → `generateEmbedding()` |
 | Database | Supabase JS v2 | `lib/supabase/{client,server,admin}.ts` |
 | Animations | Framer Motion | direct import |

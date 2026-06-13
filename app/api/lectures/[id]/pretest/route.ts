@@ -176,19 +176,19 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 
   const { data: generation } = await generateJSON<PretestGeneration>(
     "You write pretest questions — short, open-ended questions a student answers " +
-      "BEFORE a lecture. Wrong answers are expected; the goal is to spark curiosity " +
-      "and prime encoding during the lecture. Never ask trivial recall of the " +
-      "prerequisites alone — probe what the lecture will likely teach.",
+    "BEFORE a lecture. Wrong answers are expected; the goal is to spark curiosity " +
+    "and prime encoding during the lecture. Never ask trivial recall of the " +
+    "prerequisites alone — probe what the lecture will likely teach.",
     `Upcoming lecture (Week ${lecture.week_number}): "${lecture.title}".\n` +
-      `Prerequisite concepts the student already knows about:\n` +
-      `${prereqContext || "(none listed)"}` +
-      bridgeExcerpt +
-      `\n\nWrite 5–8 open questions probing what this lecture will likely teach and ` +
-      `how it builds on the prerequisites. For each, include a concise "model_answer" ` +
-      `(2–3 sentences, best-guess based on the topic).\n` +
-      `Return JSON: { "questions": [{ "q", "model_answer" }] }`,
+    `Prerequisite concepts the student already knows about:\n` +
+    `${prereqContext || "(none listed)"}` +
+    bridgeExcerpt +
+    `\n\nWrite 5–8 open questions probing what this lecture will likely teach and ` +
+    `how it builds on the prerequisites. For each, include a concise "model_answer" ` +
+    `(2–3 sentences, best-guess based on the topic).\n` +
+    `Return JSON: { "questions": [{ "q", "model_answer" }] }`,
     2048,
-    "gpt-4o"
+    "gpt-5.4"
   );
 
   const questions = (generation?.questions ?? [])

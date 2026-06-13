@@ -9,9 +9,9 @@ import {
   type PrereqStatusKind,
 } from "@/lib/mentor-context";
 
-// The flagship mentor runs on the full gpt-4o model (the UI badge already
-// promises "GPT-4o"); other AI features stay on the cheaper default.
-const MENTOR_MODEL = "gpt-4o";
+// The flagship mentor runs on the full gpt-5.4 model (the UI badge already
+// promises "gpt-5.4"); other AI features stay on the cheaper default.
+const MENTOR_MODEL = "gpt-5.4";
 
 const MENTOR_SYSTEM = `You are the user's personal AI learning mentor for DSA and AIML mastery — the smartest, most context-aware coach on the platform. You are strict, data-driven, and genuinely encouraging, like an elite coach who plans the user's WEEK, not just their day.
 
@@ -60,28 +60,28 @@ Open with a one-line headline of today's single focus, THEN the structured day p
 function buildContextString(ctx: Record<string, unknown>): string {
   const daysSinceDSA = ctx.lastDSASolvedAt
     ? Math.floor(
-        (Date.now() - new Date(ctx.lastDSASolvedAt as string).getTime()) /
-          86400000
-      )
+      (Date.now() - new Date(ctx.lastDSASolvedAt as string).getTime()) /
+      86400000
+    )
     : null;
 
   const weakestConceptsStr = (
     ctx.weakestConcepts as { title: string; mastery: number }[] | undefined
   )?.length
     ? (ctx.weakestConcepts as { title: string; mastery: number }[])
-        .map((c) => `${c.title} (${c.mastery}%)`)
-        .join(", ")
+      .map((c) => `${c.title} (${c.mastery}%)`)
+      .join(", ")
     : "none logged yet";
 
   const stats = ctx.reviewStats as
     | {
-        totalCards: number;
-        avgStability: number;
-        totalLapses: number;
-        totalReps: number;
-        matureCardCount: number;
-        successRate: number;
-      }
+      totalCards: number;
+      avgStability: number;
+      totalLapses: number;
+      totalReps: number;
+      matureCardCount: number;
+      successRate: number;
+    }
     | undefined;
 
   return `
@@ -141,10 +141,9 @@ function buildLectureContextString(intel: LectureIntel): string {
         `${i + 1}. "${lec.title}" — ${when} (${lec.scheduledDate})${lec.imminent ? " [IMMINENT]" : ""}`
       );
       lines.push(
-        `   Readiness: ${pct(lec.readinessScore)} · Coverage: ${
-          lec.prereqCount === 0
-            ? "no prerequisites"
-            : `${Math.round(lec.coverage * lec.prereqCount)}/${lec.prereqCount} prereqs studied`
+        `   Readiness: ${pct(lec.readinessScore)} · Coverage: ${lec.prereqCount === 0
+          ? "no prerequisites"
+          : `${Math.round(lec.coverage * lec.prereqCount)}/${lec.prereqCount} prereqs studied`
         } · Prep remaining: ~${lec.prepMinutesRemaining} min · Days to prepare: ${Math.max(lec.daysUntil, 0)}`
       );
       if (lec.prereqs.length > 0) {

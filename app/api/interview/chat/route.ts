@@ -10,7 +10,7 @@ import type { Json } from "@/types/database";
  * the session (the client never sends them). The running transcript is persisted
  * after each turn so an interrupted session can resume with full history.
  *
- * Mirrors app/api/ai/feynman/route.ts POST, on gpt-4o.
+ * Mirrors app/api/ai/feynman/route.ts POST, on gpt-5.3-chat-latest.
  */
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     async start(controller) {
       let fullText = "";
       try {
-        for await (const chunk of streamText(systemPrompt, messages, 1024, "gpt-4o")) {
+        for await (const chunk of streamText(systemPrompt, messages, 1024, "gpt-5.3-chat-latest")) {
           fullText += chunk;
           controller.enqueue(encoder.encode(chunk));
         }

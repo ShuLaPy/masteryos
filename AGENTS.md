@@ -73,7 +73,7 @@ supabase/migrations/<timestamp>_lecture_schedules.sql
 - Use existing lib/fsrs.ts getRetrievability and getRetentionColor — never reimplement FSRS
 - All tables have RLS; queries must use authenticated client
 - Dark mode only — use CSS vars from globals.css (see CLAUDE.md design system)
-- ANTHROPIC_API_KEY is set but current AI uses OpenAI (gpt-4o) — keep using OpenAI
+- ANTHROPIC_API_KEY is set but current AI uses OpenAI (gpt-5.4) — keep using OpenAI
 
 ## Naming conventions (match existing codebase)
 

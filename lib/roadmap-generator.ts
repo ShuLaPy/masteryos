@@ -26,7 +26,7 @@ import type { Database } from "@/types/database";
 /** Generation runs well under a minute; a frozen claim older than this is reclaimable. */
 const STALE_MS = 10 * 60 * 1000;
 
-const MODEL = "gpt-4o";
+const MODEL = "gpt-5.4";
 
 const SYSTEM_PROMPT =
   "You are an expert AI/ML curriculum designer. You build rigorous, dependency-aware syllabi that take a learner from foundational understanding to complete technical mastery of a concept, ordered by Bloom's taxonomy (remember/understand → apply → analyze → create). You output ONLY the index of topics to study — never the educational content itself.";
@@ -244,7 +244,7 @@ export async function generateConceptRoadmap(
     return { data: { status: "ready" }, error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    await markFailed(supabase, roadmapId, message).catch(() => {});
+    await markFailed(supabase, roadmapId, message).catch(() => { });
     return { data: null, error: message };
   }
 }

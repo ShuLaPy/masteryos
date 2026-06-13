@@ -10,14 +10,14 @@
   [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6?logo=typescript)](https://www.typescriptlang.org/)
   [![OpenAI](https://img.shields.io/badge/AI-OpenAI-412991.svg)](https://openai.com/)
   
-  [Live Demo](https://masteryos.com) · [Report Bug](https://github.com/ShuLaPy/masteryos/issues) · [Request Feature](https://github.com/ShuLaPy/masteryos/issues)
+  [Report Bug](https://github.com/ShuLaPy/masteryos/issues) · [Request Feature](https://github.com/ShuLaPy/masteryos/issues)
 </div>
 
 <hr>
 
 > **Not another flashcard app. Not another LeetCode grind tracker.** MasteryOS is a full-stack study companion that knows *what* you're learning, *when* you need it, and *why* it matters. 
 
-## 🤔 Why We Built This
+## 🤔 Why I Built This
 
 Traditional studying is structurally broken, and most learning tools solve **one** problem in isolation:
 
@@ -37,7 +37,7 @@ MasteryOS is a single Next.js application backed by Supabase. It unifies two par
 |-------|-------------------|-------------|
 | 🎓 **AIML Track** | Concept retention, prerequisite readiness, lecture alignment | FSRS + Concept Graph + Bridge & Runway |
 | 💻 **DSA Track** | Pattern recognition, problem-solving fluency, interview readiness | Glicko-2 + FSRS recognition cards + Curated Bank |
-| 🤖 **AI Mentor** | Daily guidance, synthesis, coaching | GPT-4o (Server-side) |
+| 🤖 **AI Mentor** | Daily guidance, synthesis, coaching | GPT-5.4 (Server-side) |
 
 ---
 
@@ -82,7 +82,7 @@ Where definition flashcards fail, MasteryOS trains **recognition** and **executi
 
 - **Framework:** Next.js 16 (App Router, Server Components)
 - **Database & Auth:** Supabase (PostgreSQL, Row Level Security, Edge Functions)
-- **AI & Search:** OpenAI `gpt-4o` + `text-embedding-3-small` via `pgvector` HNSW index
+- **AI & Search:** OpenAI `gpt-5.4` + `text-embedding-3-small` via `pgvector` HNSW index
 - **Algorithms:** `ts-fsrs` (Memory), Custom Glicko-2 (Skill), Custom Planning Engine
 - **Styling:** Tailwind CSS v4, Shadcn/UI, Framer Motion
 - **Data Viz:** Recharts + D3.js
@@ -118,8 +118,8 @@ Create a `.env.local` file in the root directory:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
+SUPABASE_SECRET_KEY=your_secret_key
 OPENAI_API_KEY=your_openai_api_key
 
 ```
@@ -136,7 +136,10 @@ npx supabase db push
 # Seed the curated DSA problem bank
 npm run seed:problems
 
-# Optional: Backfill Glicko-2 ratings from existing attempts
+# Enrich problem bank with concepts
+npm run enrich:problems
+
+# Backfill Glicko-2 ratings from existing attempts
 npm run backfill:elo
 
 ```
@@ -148,7 +151,7 @@ npm run dev
 
 ```
 
-Open [http://localhost:3000](https://www.google.com/search?q=http://localhost:3000) and start building your knowledge vault.
+Open [http://localhost:3000](http://localhost:3000) and start building your knowledge vault.
 
 ---
 

@@ -185,7 +185,7 @@ Body: { company: string, timeBudgetMinutes: number }
    the cumulative estimated time fills timeBudgetMinutes. Exclude problems the
    user already solved well (recent successful attempt).
 5. Pass the shortlist + the user's weak-pattern context to the LLM via
-   lib/ai-router.ts (task='problem_selection', GPT-5.5). The LLM orders them
+   lib/ai-router.ts (task='problem_selection', GPT-5.4). The LLM orders them
    into a sensible session and writes a one-line rationale per problem
    ("warm up with this two-pointer, then the harder graph problem Google favors").
    LLM only ranks/justifies the shortlist — never invents problems.
@@ -227,7 +227,7 @@ Body: { slug, guessedPatterns: string[] }
 2. Score: is_correct = guessed set overlaps the primary pattern
    (guessedPatterns includes problem.patterns[0]).
 3. Log a pattern_drill_attempt row.
-4. Call the LLM via lib/ai-router.ts (task='problem_selection', GPT-5.5):
+4. Call the LLM via lib/ai-router.ts (task='problem_selection', GPT-5.4):
    "The student saw '{title}' and guessed it uses: {guessedPatterns}.
     The actual patterns are: {realPatterns}. In 3-4 sentences, explain
     whether their classification was right, partially right, or wrong, and

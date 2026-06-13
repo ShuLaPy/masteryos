@@ -8,7 +8,7 @@ import {
   type ItemStatus,
 } from "@/lib/roadmap";
 
-// Roadmap generation is a long single gpt-4o call; allow up to a minute.
+// Roadmap generation is a long single gpt-5.4 call; allow up to a minute.
 export const maxDuration = 60;
 
 type RouteContext = { params: Promise<{ id: string }> };

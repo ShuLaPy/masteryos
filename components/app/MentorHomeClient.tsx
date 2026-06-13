@@ -216,7 +216,7 @@ export default function MentorHomeClient({ ctx }: { ctx: MentorContext }) {
                 <div className="glass rounded-2xl rounded-tl-sm p-4 max-w-2xl">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-xs font-semibold text-primary">AI Mentor</span>
-                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-primary/30 text-primary/70">GPT-4o</Badge>
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-primary/30 text-primary/70">GPT-5.4</Badge>
                   </div>
                   <div className="bridge-prose text-sm text-foreground leading-relaxed">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{greeting}</ReactMarkdown>
@@ -247,11 +247,10 @@ export default function MentorHomeClient({ ctx }: { ctx: MentorContext }) {
                 animate={{ opacity: 1, y: 0 }}
                 className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
               >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                  msg.role === "user"
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${msg.role === "user"
                     ? "bg-primary/20 border border-primary/30"
                     : "bg-secondary border border-border/60"
-                }`}>
+                  }`}>
                   {msg.role === "user" ? (
                     <span className="text-xs font-bold text-primary">
                       {ctx.displayName[0].toUpperCase()}
@@ -261,11 +260,10 @@ export default function MentorHomeClient({ ctx }: { ctx: MentorContext }) {
                   )}
                 </div>
                 <div className={`max-w-2xl ${msg.role === "user" ? "items-end" : "items-start"} flex flex-col`}>
-                  <div className={`rounded-2xl p-4 text-sm leading-relaxed ${
-                    msg.role === "user"
+                  <div className={`rounded-2xl p-4 text-sm leading-relaxed ${msg.role === "user"
                       ? "bg-primary/20 border border-primary/20 rounded-tr-sm text-foreground"
                       : "glass rounded-tl-sm text-foreground"
-                  }`}>
+                    }`}>
                     {msg.content ? (
                       msg.role === "assistant" ? (
                         <div className="bridge-prose">

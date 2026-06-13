@@ -190,7 +190,7 @@ async function deriveQueries(profileText: string): Promise<string[]> {
     `Return JSON: { "queries": string[] } with ${MAX_QUERIES} short arXiv search ` +
     `queries spanning their strongest areas. No author names, no years.`;
 
-  const { data } = await generateJSON<{ queries?: unknown }>(system, user, 600, "gpt-4o-mini");
+  const { data } = await generateJSON<{ queries?: unknown }>(system, user, 600, "gpt-5.4-mini");
   return asStringArray(data?.queries).slice(0, MAX_QUERIES);
 }
 
@@ -252,7 +252,7 @@ async function rankCandidates(
     `  "reading_order": number                // 1-based suggested order\n` +
     `} ] }`;
 
-  const { data } = await generateJSON<{ selections?: unknown }>(system, user, 3000, "gpt-4o");
+  const { data } = await generateJSON<{ selections?: unknown }>(system, user, 3000, "gpt-5.4");
   return Array.isArray(data?.selections) ? (data.selections as RawSelection[]) : [];
 }
 

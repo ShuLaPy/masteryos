@@ -44,14 +44,14 @@ export async function GET() {
 
   const current = currentRes.data
     ? {
-        sessionId: currentRes.data.id,
-        status: currentRes.data.status,
-        slotsMeta: toSlotMeta((currentRes.data.question_plan as unknown as InterviewSlot[]) ?? []),
-        grades: currentRes.data.grades,
-        transcript: currentRes.data.transcript,
-        currentSlot: currentRes.data.current_slot,
-        overallScore: currentRes.data.overall_score,
-      }
+      sessionId: currentRes.data.id,
+      status: currentRes.data.status,
+      slotsMeta: toSlotMeta((currentRes.data.question_plan as unknown as InterviewSlot[]) ?? []),
+      grades: currentRes.data.grades,
+      transcript: currentRes.data.transcript,
+      currentSlot: currentRes.data.current_slot,
+      overallScore: currentRes.data.overall_score,
+    }
     : null;
 
   return Response.json({
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
     sys,
     "Begin the mock interview now. Greet the candidate in one sentence, then ask your first, fairly broad opening question for concept 0 — and be ready to drill down on their answer over the next turns. Do not emit any JSON yet.",
     400,
-    "gpt-4o"
+    "gpt-5.3-chat-latest"
   );
   const firstQuestion =
     generated?.trim() ||

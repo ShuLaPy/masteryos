@@ -307,10 +307,10 @@ Body: { problemId: string }
    a. Also fetch the matching problem_bank row by leetcode_url slug
       to get patterns and company context.
    b. Call the LLM via lib/ai-router.ts with task='problem_selection'
-      (this routes to GPT-5.5 — complex reasoning task) using the
+      (this routes to GPT-5.4 — complex reasoning task) using the
       AI Explain prompt from the spec, substituting problem fields.
    c. Store result in dsa_problems.ai_explanation, set
-      ai_explanation_generated_at=now(), ai_explanation_model='gpt-5.5'.
+      ai_explanation_generated_at=now(), ai_explanation_model='gpt-5.4'.
    d. Return { data: { explanation, cached: false }, error: null }
 4. If AI fails: return error message — do NOT cache the failure.
 

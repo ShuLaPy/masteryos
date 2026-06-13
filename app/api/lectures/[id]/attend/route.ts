@@ -273,34 +273,34 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const hasBrainDump = brainDump.length > 0;
 
   // 1. Single AI pass: extract concepts + compare against free recall + write
-  //    multi-level cards. 5 concepts × 4 cards exceeds 2048 tokens → 4096 + gpt-4o.
+  //    multi-level cards. 5 concepts × 4 cards exceeds 2048 tokens → 4096 + gpt-5.4.
   const pretestContext = buildPretestContext(
     lecture.pretest,
     lecture.pretest_attempt
   );
   const { data: extraction } = await generateJSON<IngestionResult>(
     "You are an expert AI tutor. You extract core concepts from lecture material, " +
-      "compare them against the student's free-recall brain dump, and write " +
-      "multi-level spaced-repetition flashcards.",
+    "compare them against the student's free-recall brain dump, and write " +
+    "multi-level spaced-repetition flashcards.",
     `Extract 3–5 distinct core concepts from the lecture material below.\n` +
-      `For each concept return:\n` +
-      `- "name" and "definition"\n` +
-      `- "recall_status": compare the concept against the student's brain dump — ` +
-      `"recalled" (present and accurate), "partial" (mentioned but incomplete), ` +
-      `"missed" (absent), "distorted" (present but wrong). ` +
-      `If no brain dump is provided, use "n/a" for every concept.\n` +
-      `- "recall_note": one sentence on what was missing or wrong (empty string if recalled)\n` +
-      `- "cards": exactly 4 flashcards spanning levels — one "definition", ` +
-      `one "application" (why/when it's used), one "connection" (link to a ` +
-      `prerequisite or adjacent concept), one "example" (worked example or edge case).\n` +
-      `Return JSON: { "concepts": [{ "name", "definition", "recall_status", ` +
-      `"recall_note", "cards": [{ "front", "back", "level" }] }] }` +
-      pretestContext +
-      `\n\nStudent's brain dump (free recall, written without notes):\n` +
-      (hasBrainDump ? brainDump : "(none provided)") +
-      `\n\nLecture material:\n${material}`,
+    `For each concept return:\n` +
+    `- "name" and "definition"\n` +
+    `- "recall_status": compare the concept against the student's brain dump — ` +
+    `"recalled" (present and accurate), "partial" (mentioned but incomplete), ` +
+    `"missed" (absent), "distorted" (present but wrong). ` +
+    `If no brain dump is provided, use "n/a" for every concept.\n` +
+    `- "recall_note": one sentence on what was missing or wrong (empty string if recalled)\n` +
+    `- "cards": exactly 4 flashcards spanning levels — one "definition", ` +
+    `one "application" (why/when it's used), one "connection" (link to a ` +
+    `prerequisite or adjacent concept), one "example" (worked example or edge case).\n` +
+    `Return JSON: { "concepts": [{ "name", "definition", "recall_status", ` +
+    `"recall_note", "cards": [{ "front", "back", "level" }] }] }` +
+    pretestContext +
+    `\n\nStudent's brain dump (free recall, written without notes):\n` +
+    (hasBrainDump ? brainDump : "(none provided)") +
+    `\n\nLecture material:\n${material}`,
     4096,
-    "gpt-4o"
+    "gpt-5.4"
   );
 
   // 2. Validate: keep only well-formed, distinct (by name) concepts with ≥2 cards.
@@ -507,15 +507,15 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   // 7. Return ingestion summary (+ recall gap breakdown when a brain dump exists).
   const gapSummary = hasBrainDump
     ? gapEntries.reduce(
-        (acc, e) => {
-          if (e.status === "recalled") acc.recalled += 1;
-          else if (e.status === "partial") acc.partial += 1;
-          else if (e.status === "distorted") acc.distorted += 1;
-          else acc.missed += 1;
-          return acc;
-        },
-        { recalled: 0, partial: 0, missed: 0, distorted: 0 }
-      )
+      (acc, e) => {
+        if (e.status === "recalled") acc.recalled += 1;
+        else if (e.status === "partial") acc.partial += 1;
+        else if (e.status === "distorted") acc.distorted += 1;
+        else acc.missed += 1;
+        return acc;
+      },
+      { recalled: 0, partial: 0, missed: 0, distorted: 0 }
+    )
     : null;
 
   return Response.json({
