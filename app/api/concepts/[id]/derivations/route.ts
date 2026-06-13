@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateJSON } from "@/lib/openai";
 import { newCard, fsrsCardToDB } from "@/lib/fsrs";
@@ -156,8 +156,12 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     .eq("user_id", user.id);
 
   // Surface the new cards in today's plan (best-effort, non-blocking).
-  void generateDailyPlanForUser(supabase, user.id).catch((err: unknown) => {
-    console.error("[derivations] Plan regeneration failed:", err);
+  after(async () => {
+    try {
+      await generateDailyPlanForUser(supabase, user.id);
+    } catch (err) {
+      console.error("[derivations] Plan regeneration failed:", err);
+    }
   });
 
   return Response.json({

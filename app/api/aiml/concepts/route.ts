@@ -1,9 +1,11 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateEmbedding } from "@/lib/openai";
 import { generateConceptRoadmap } from "@/lib/roadmap-generator";
 import crypto from "crypto";
+
+export const maxDuration = 60;
 
 export async function PATCH(request: NextRequest) {
   const supabase = await createClient();
@@ -67,20 +69,26 @@ export async function POST(request: NextRequest) {
   try {
     const embeddingContent = [title, concept_type ? `Type: ${concept_type}` : "", notes || "", tags?.length ? `Tags: ${tags.join(", ")}` : ""].filter(Boolean).join("\n");
     if (embeddingContent.length >= 10) {
-      const contentHash = crypto.createHash("sha256").update(embeddingContent).digest("hex");
-      const { data: embedding } = await generateEmbedding(embeddingContent);
-      if (embedding) {
-        await supabase.from("concept_embeddings").insert({
-          user_id: user.id,
-          source_type: "aiml_concept",
-          source_id: concept.id,
-          content_hash: contentHash,
-          embedding: JSON.stringify(embedding),
-        });
-      }
+      after(async () => {
+        try {
+          const contentHash = crypto.createHash("sha256").update(embeddingContent).digest("hex");
+          const { data: embedding } = await generateEmbedding(embeddingContent);
+          if (embedding) {
+            await createAdminClient().from("concept_embeddings").insert({
+              user_id: user.id,
+              source_type: "aiml_concept",
+              source_id: concept.id,
+              content_hash: contentHash,
+              embedding: JSON.stringify(embedding),
+            });
+          }
+        } catch (e) {
+          console.error(`[concepts] Embedding generation failed for ${concept.id}:`, e);
+        }
+      });
     }
   } catch {
-    // Embedding generation failure shouldn't block concept creation
+    // Embedding generation setup failure shouldn't block concept creation
   }
 
   // 3. Kick off Learning Path generation (Dynamic Learning Path). Seed a
@@ -94,8 +102,12 @@ export async function POST(request: NextRequest) {
       concept_id: concept.id,
       status: "pending",
     });
-    void generateConceptRoadmap(createAdminClient(), user.id, concept.id).catch((err) => {
-      console.error(`[concepts] Roadmap generation failed for ${concept.id}:`, err);
+    after(async () => {
+      try {
+        await generateConceptRoadmap(createAdminClient(), user.id, concept.id);
+      } catch (err) {
+        console.error(`[concepts] Roadmap generation failed for ${concept.id}:`, err);
+      }
     });
   } catch {
     // Roadmap kickoff failure shouldn't block concept creation

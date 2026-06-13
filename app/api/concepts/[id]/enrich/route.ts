@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateJSON } from "@/lib/openai";
 import { newCard, fsrsCardToDB } from "@/lib/fsrs";
@@ -142,8 +142,12 @@ Return ONLY valid JSON:
   }
 
   // Regenerate today's plan in the background so the Runway zone reflects the change
-  void generateDailyPlanForUser(supabase, user.id).catch((err: unknown) => {
-    console.error("[enrich] Plan regeneration failed:", err);
+  after(async () => {
+    try {
+      await generateDailyPlanForUser(supabase, user.id);
+    } catch (err) {
+      console.error("[enrich] Plan regeneration failed:", err);
+    }
   });
 
   return Response.json({
