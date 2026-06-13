@@ -535,6 +535,83 @@ export type Database = {
           },
         ]
       }
+      paper_recommendations: {
+        Row: {
+          abs_url: string | null
+          abstract: string | null
+          alignment_rationale: string | null
+          arxiv_id: string
+          authors: string[]
+          categories: string[]
+          created_at: string
+          gap_concepts: Json
+          id: string
+          matched_concept_ids: string[]
+          matched_concept_titles: string[]
+          pdf_url: string | null
+          published_at: string | null
+          readiness: string | null
+          reading_order: number | null
+          relevance_score: number | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          abs_url?: string | null
+          abstract?: string | null
+          alignment_rationale?: string | null
+          arxiv_id: string
+          authors?: string[]
+          categories?: string[]
+          created_at?: string
+          gap_concepts?: Json
+          id?: string
+          matched_concept_ids?: string[]
+          matched_concept_titles?: string[]
+          pdf_url?: string | null
+          published_at?: string | null
+          readiness?: string | null
+          reading_order?: number | null
+          relevance_score?: number | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          abs_url?: string | null
+          abstract?: string | null
+          alignment_rationale?: string | null
+          arxiv_id?: string
+          authors?: string[]
+          categories?: string[]
+          created_at?: string
+          gap_concepts?: Json
+          id?: string
+          matched_concept_ids?: string[]
+          matched_concept_titles?: string[]
+          pdf_url?: string | null
+          published_at?: string | null
+          readiness?: string | null
+          reading_order?: number | null
+          relevance_score?: number | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paper_recommendations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       papers: {
         Row: {
           abstract: string | null

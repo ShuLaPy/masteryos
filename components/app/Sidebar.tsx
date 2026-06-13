@@ -18,6 +18,7 @@ import {
   LogOut,
   Flame,
   BookOpen,
+  Microscope,
   ChevronRight,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +61,12 @@ const navItems = [
     href: "/interview",
     icon: MessageSquare,
     description: "Weekly mock interview",
+  },
+  {
+    label: "Research",
+    href: "/research",
+    icon: Microscope,
+    description: "Papers for your level",
   },
   {
     label: "Analytics",
