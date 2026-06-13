@@ -275,6 +275,113 @@ export function computeOverallProgress(roots: RoadmapNode[]): {
   };
 }
 
+// ── UI helper utilities ───────────────────────────────────────────────────────
+
+/**
+ * Format a minute count into a human-readable string, e.g. "~6h 20m" / "45m".
+ * Returns "" when minutes is null/zero.
+ */
+export function formatMinutes(minutes: number | null | undefined): string {
+  if (!minutes || minutes <= 0) return "";
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `~${h}h`;
+  return `~${h}h ${m}m`;
+}
+
+/**
+ * Sum estimated_minutes for all incomplete (non-completed) leaves under `roots`.
+ * Returns { remainingMinutes, totalMinutes }.
+ */
+export function computeTimeRemaining(roots: RoadmapNode[]): {
+  remainingMinutes: number;
+  totalMinutes: number;
+} {
+  let remaining = 0;
+  let total = 0;
+  const visit = (node: RoadmapNode) => {
+    if (node.children.length === 0) {
+      const mins = node.estimated_minutes ?? 0;
+      total += mins;
+      if (node.status !== "completed") remaining += mins;
+    } else {
+      node.children.forEach(visit);
+    }
+  };
+  roots.forEach(visit);
+  return { remainingMinutes: remaining, totalMinutes: total };
+}
+
+/**
+ * Find the next actionable leaf: the first leaf (DFS, sort_order) whose
+ * `depends_on` are all completed and whose status is not "completed".
+ * Returns null when every leaf is completed or blocked.
+ */
+export function findNextActionable(
+  roots: RoadmapNode[],
+  statusById: Map<string, ItemStatus>
+): RoadmapNode | null {
+  let result: RoadmapNode | null = null;
+  const visit = (node: RoadmapNode) => {
+    if (result) return;
+    if (node.children.length === 0) {
+      if (node.status === "completed") return;
+      const allDepsDone = node.depends_on.every(
+        (id) => statusById.get(id) === "completed"
+      );
+      if (allDepsDone) result = node;
+    } else {
+      node.children.forEach(visit);
+    }
+  };
+  roots.forEach(visit);
+  return result;
+}
+
+/**
+ * Whether all `depends_on` for a node are completed per the given status map.
+ */
+export function isUnlocked(
+  node: RoadmapNode,
+  statusById: Map<string, ItemStatus>
+): boolean {
+  return node.depends_on.every((id) => statusById.get(id) === "completed");
+}
+
+/**
+ * Sum estimated_minutes of all descendants (inclusive) of a phase node.
+ */
+export function phaseTimeTotal(node: RoadmapNode): number {
+  let total = 0;
+  const visit = (n: RoadmapNode) => {
+    if (n.children.length === 0) {
+      total += n.estimated_minutes ?? 0;
+    } else {
+      n.children.forEach(visit);
+    }
+  };
+  visit(node);
+  return total;
+}
+
+/**
+ * Collect all distinct non-null difficulty values among descendant leaves.
+ * Returns them in Bloom order (foundational → expert).
+ */
+export function phaseDifficultyRange(node: RoadmapNode): DifficultyLevel[] {
+  const found = new Set<DifficultyLevel>();
+  const visit = (n: RoadmapNode) => {
+    if (n.children.length === 0) {
+      if (n.difficulty) found.add(n.difficulty);
+    } else {
+      n.children.forEach(visit);
+    }
+  };
+  visit(node);
+  return DIFFICULTY_LEVELS.filter((d) => found.has(d));
+}
+
 /**
  * Validate/normalize an untrusted `resources` value (DB jsonb or PATCH body)
  * into a clean {@link ResourceLink}[]. Drops malformed entries.
