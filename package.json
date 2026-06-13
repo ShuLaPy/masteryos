@@ -7,9 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed:problems": "tsx --env-file=.env.prod scripts/seed-problem-bank.ts",
-    "enrich:problems": "tsx --env-file=.env.prod scripts/enrich-problem-bank.ts",
-    "backfill:elo": "tsx --env-file=.env.prod scripts/backfill-problem-elo.ts",
+    "seed:problems": "tsx --env-file=.env.local scripts/seed-problem-bank.ts",
+    "enrich:problems": "tsx --env-file=.env.local scripts/enrich-problem-bank.ts",
+    "backfill:elo": "tsx --env-file=.env.local scripts/backfill-problem-elo.ts",
     "verify:glicko2": "tsx scripts/verify-glicko2.ts"
   },
   "dependencies": {
