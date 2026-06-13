@@ -7,6 +7,8 @@ import { RelatedConcepts } from "@/components/app/RelatedConcepts";
 import { PrerequisitesEditor } from "@/components/app/PrerequisitesEditor";
 import { ConceptNotesCard } from "@/components/app/ConceptNotesCard";
 import { DerivationDrillCard } from "@/components/app/DerivationDrillCard";
+import { LearningPathSection } from "@/components/app/LearningPathSection";
+import { parseResources, type RoadmapItemRow } from "@/lib/roadmap";
 
 export const metadata = { title: "Concept Details — MasteryOS" };
 
@@ -35,6 +37,30 @@ export default async function AIMLConceptPage({ params }: { params: Promise<{ id
     .eq("user_id", user.id);
 
   const conceptCards = cards ?? [];
+
+  // Dynamic Learning Path — lifecycle row + the topic tree (normalized for the client).
+  const { data: roadmap } = await supabase
+    .from("concept_roadmaps")
+    .select("status, version, error")
+    .eq("concept_id", concept.id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const { data: rawRoadmapItems } = await supabase
+    .from("roadmap_items")
+    .select(
+      "id, parent_item_id, depth, sort_order, title, description, difficulty, estimated_minutes, status, notes, resources, depends_on"
+    )
+    .eq("concept_id", concept.id)
+    .eq("user_id", user.id)
+    .order("depth", { ascending: true })
+    .order("sort_order", { ascending: true });
+
+  const roadmapItems = (rawRoadmapItems ?? []).map((it) => ({
+    ...it,
+    resources: parseResources(it.resources),
+    depends_on: it.depends_on ?? [],
+  })) as RoadmapItemRow[];
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-8">
@@ -131,6 +157,13 @@ export default async function AIMLConceptPage({ params }: { params: Promise<{ id
           />
         </div>
       </div>
+
+      <LearningPathSection
+        conceptId={concept.id}
+        initialStatus={roadmap?.status ?? null}
+        initialError={roadmap?.error ?? null}
+        initialItems={roadmapItems}
+      />
     </div>
   );
 }

@@ -134,6 +134,60 @@ export type Database = {
           },
         ]
       }
+      concept_roadmaps: {
+        Row: {
+          concept_id: string
+          created_at: string
+          error: string | null
+          id: string
+          model: string | null
+          status: string
+          status_updated_at: string
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          concept_id: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          model?: string | null
+          status?: string
+          status_updated_at?: string
+          updated_at?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          concept_id?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          model?: string | null
+          status?: string
+          status_updated_at?: string
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concept_roadmaps_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "aiml_concepts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concept_roadmaps_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_plans: {
         Row: {
           completion_pct: number | null
@@ -424,6 +478,140 @@ export type Database = {
           },
         ]
       }
+      paper_chunks: {
+        Row: {
+          chunk_index: number
+          chunk_type: string
+          content: string
+          created_at: string
+          embedding: string | null
+          id: string
+          latex: string | null
+          paper_id: string
+          section_path: string | null
+          token_count: number | null
+          user_id: string
+        }
+        Insert: {
+          chunk_index: number
+          chunk_type: string
+          content: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          latex?: string | null
+          paper_id: string
+          section_path?: string | null
+          token_count?: number | null
+          user_id: string
+        }
+        Update: {
+          chunk_index?: number
+          chunk_type?: string
+          content?: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          latex?: string | null
+          paper_id?: string
+          section_path?: string | null
+          token_count?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paper_chunks_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "papers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paper_chunks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      papers: {
+        Row: {
+          abstract: string | null
+          arxiv_id: string | null
+          authors: string[] | null
+          categories: string[] | null
+          created_at: string
+          extracted_concept_ids: string[] | null
+          id: string
+          ingest_error: string | null
+          ingest_status: string | null
+          mastery_score: number | null
+          parse_fidelity: string | null
+          parse_method: string | null
+          prerequisite_concept_ids: string[] | null
+          published_at: string | null
+          raw_text: string | null
+          reading_state: Json | null
+          source_url: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          abstract?: string | null
+          arxiv_id?: string | null
+          authors?: string[] | null
+          categories?: string[] | null
+          created_at?: string
+          extracted_concept_ids?: string[] | null
+          id?: string
+          ingest_error?: string | null
+          ingest_status?: string | null
+          mastery_score?: number | null
+          parse_fidelity?: string | null
+          parse_method?: string | null
+          prerequisite_concept_ids?: string[] | null
+          published_at?: string | null
+          raw_text?: string | null
+          reading_state?: Json | null
+          source_url?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          abstract?: string | null
+          arxiv_id?: string | null
+          authors?: string[] | null
+          categories?: string[] | null
+          created_at?: string
+          extracted_concept_ids?: string[] | null
+          id?: string
+          ingest_error?: string | null
+          ingest_status?: string | null
+          mastery_score?: number | null
+          parse_fidelity?: string | null
+          parse_method?: string | null
+          prerequisite_concept_ids?: string[] | null
+          published_at?: string | null
+          raw_text?: string | null
+          reading_state?: Json | null
+          source_url?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "papers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pattern_drill_attempts: {
         Row: {
           correct_patterns: string[]
@@ -649,6 +837,91 @@ export type Database = {
           },
           {
             foreignKeyName: "reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roadmap_items: {
+        Row: {
+          completed_at: string | null
+          concept_id: string
+          created_at: string
+          depends_on: string[]
+          depth: number
+          description: string | null
+          difficulty: string | null
+          estimated_minutes: number | null
+          id: string
+          notes: string | null
+          parent_item_id: string | null
+          resources: Json
+          roadmap_id: string
+          sort_order: number
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          concept_id: string
+          created_at?: string
+          depends_on?: string[]
+          depth?: number
+          description?: string | null
+          difficulty?: string | null
+          estimated_minutes?: number | null
+          id?: string
+          notes?: string | null
+          parent_item_id?: string | null
+          resources?: Json
+          roadmap_id: string
+          sort_order?: number
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          concept_id?: string
+          created_at?: string
+          depends_on?: string[]
+          depth?: number
+          description?: string | null
+          difficulty?: string | null
+          estimated_minutes?: number | null
+          id?: string
+          notes?: string | null
+          parent_item_id?: string | null
+          resources?: Json
+          roadmap_id?: string
+          sort_order?: number
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roadmap_items_parent_item_id_fkey"
+            columns: ["parent_item_id"]
+            isOneToOne: false
+            referencedRelation: "roadmap_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roadmap_items_roadmap_id_fkey"
+            columns: ["roadmap_id"]
+            isOneToOne: false
+            referencedRelation: "concept_roadmaps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roadmap_items_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -950,6 +1223,24 @@ export type Database = {
           similarity: number
           source_id: string
           source_type: string
+        }[]
+      }
+      match_paper_chunks: {
+        Args: {
+          exclude_paper_id?: string
+          match_count?: number
+          p_user_id: string
+          query_embedding: string
+        }
+        Returns: {
+          chunk_index: number
+          chunk_type: string
+          content: string
+          id: string
+          latex: string
+          paper_id: string
+          section_path: string
+          similarity: number
         }[]
       }
     }
