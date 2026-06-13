@@ -12,6 +12,8 @@ import {
 import { toast } from "sonner";
 import Link from "next/link";
 import ResolveLadderCard, { type ResolveProblem } from "@/components/app/ResolveLadderCard";
+import DerivationCardView from "@/components/app/DerivationCardView";
+import { parseDerivationPayload } from "@/lib/derivation";
 
 interface SRSCard {
   id: string;
@@ -23,6 +25,7 @@ interface SRSCard {
   reps: number;
   lapses: number;
   stability: number;
+  payload?: unknown;
 }
 
 interface ReviewClientProps {
@@ -57,11 +60,16 @@ export default function ReviewClient({ cards, userId, resolveProblems = {} }: Re
 
   const isResolve = current?.source_type === "dsa_resolve";
   const resolveProblem = current ? resolveProblems[current.source_id] : undefined;
+  const derivationPayload =
+    current?.card_type === "derivation"
+      ? parseDerivationPayload(current.payload)
+      : null;
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      // Re-solve ladder cards manage their own reveal/grade UI (mouse-driven).
+      // Re-solve ladder and derivation cards manage their own reveal/grade UI.
       if (current?.source_type === "dsa_resolve") return;
+      if (current?.card_type === "derivation") return;
       if (!flipped) {
         if (e.key === " " || e.key === "Enter") {
           e.preventDefault();
@@ -214,6 +222,14 @@ export default function ReviewClient({ cards, userId, resolveProblems = {} }: Re
               key={current.id}
               card={{ id: current.id, reps: current.reps, source_id: current.source_id }}
               problem={resolveProblem}
+              submitting={submitting}
+              onGrade={submitRating}
+            />
+          ) : derivationPayload ? (
+            <DerivationCardView
+              key={current.id}
+              card={{ id: current.id, front: current.front }}
+              payload={derivationPayload}
               submitting={submitting}
               onGrade={submitRating}
             />

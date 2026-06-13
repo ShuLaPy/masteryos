@@ -23,6 +23,7 @@ import {
   newCard,
 } from "@/lib/fsrs";
 import { estimateCardMinutes } from "@/lib/card-estimator";
+import { claimConceptsForSeeding, releaseSeedingClaim } from "@/lib/concept-seeder";
 import { generateJSON } from "@/lib/openai";
 import type { Database, Json } from "@/types/database";
 
@@ -727,19 +728,25 @@ interface PrimerResult {
  * re-seeding. A concept whose AI generation fails, yields < {@link
  * COLD_START_MIN_CARDS} valid cards, or whose insert errors is skipped (left
  * labeled, retried on the next generation) — it never fails the whole plan.
+ *
+ * Seeding is guarded by the shared claim mutex (roadmap Phase 1a): each concept
+ * is atomically claimed ('none' → 'seeding') before generation, so this path and
+ * the lecture routes' fire-and-forget seeding can never double-seed the same
+ * concept. Unclaimed concepts (already being seeded elsewhere) are skipped here.
  */
 async function remediateColdStart(
   supabase: PlanningClient,
   userId: string,
   conceptIds: string[],
-  conceptMeta: Map<string, { title: string; notes: string | null }>,
   dueToday: string
 ): Promise<CardRow[]> {
   const created: CardRow[] = [];
 
-  for (const conceptId of conceptIds) {
-    const meta = conceptMeta.get(conceptId);
-    if (!meta) continue;
+  // Atomically claim the concepts we'll seed; whoever loses the claim is skipped.
+  const claimed = await claimConceptsForSeeding(supabase, conceptIds);
+
+  for (const meta of claimed) {
+    const conceptId = meta.id;
 
     // Source the prompt from the concept's definition (notes), falling back to
     // its title when no notes are stored (spec §6 — sourced from concept text).
@@ -765,8 +772,11 @@ async function remediateColdStart(
       )
       .slice(0, COLD_START_MAX_CARDS);
 
-    // Too few cards → skip; the prereq stays unstudied and retryable next run.
-    if (validCards.length < COLD_START_MIN_CARDS) continue;
+    // Too few cards → release the claim so the prereq stays retryable next run.
+    if (validCards.length < COLD_START_MIN_CARDS) {
+      await releaseSeedingClaim(supabase, [conceptId]);
+      continue;
+    }
 
     const dbCards = validCards.map((c) => ({
       user_id: userId,
@@ -784,7 +794,19 @@ async function remediateColdStart(
       .insert(dbCards)
       .select(CARD_COLUMNS);
 
-    if (error || !inserted) continue; // best-effort — don't fail the whole plan
+    if (error || !inserted) {
+      // best-effort — don't fail the whole plan; release so it can retry.
+      await releaseSeedingClaim(supabase, [conceptId]);
+      continue;
+    }
+
+    // Promote the claim to 'seeded' now that cards exist.
+    await supabase
+      .from("aiml_concepts")
+      .update({ card_status: "seeded", card_status_updated_at: new Date().toISOString() })
+      .eq("id", conceptId)
+      .eq("user_id", userId);
+
     created.push(...(inserted as CardRow[]));
   }
 
@@ -851,11 +873,8 @@ export async function generateDailyPlanForUser(
   }));
   const conceptById = new Map(allConcepts.map((c) => [c.id, c]));
   const conceptIds = new Set(allConcepts.map((c) => c.id));
-  // title/notes feed cold-start primer generation (spec §6); kept separate from
-  // the {id, prerequisites} shape the graph scorer needs.
-  const conceptMeta = new Map(
-    (conceptsRes.data ?? []).map((c) => [c.id, { title: c.title, notes: c.notes }])
-  );
+  // Cold-start primer generation sources title/notes itself via the seeding claim
+  // (claimConceptsForSeeding), so no separate concept-metadata map is needed here.
 
   // ── 3. Next_Lecture and Most_Recent_Lecture (tie-breaks, spec §10 / Req 9–10) ─
   // Sort ascending by (scheduled_date, week_number) — same key as the DB index.
@@ -944,13 +963,7 @@ export async function generateDailyPlanForUser(
   const dueToday = fromZonedTime(`${today}T00:00:00`, timeZone).toISOString();
   const coldStartCards =
     isLectureImminent(nextLecture, new Date(today)) && unstudiedPrereqIds.length > 0
-      ? await remediateColdStart(
-          supabase,
-          userId,
-          unstudiedPrereqIds,
-          conceptMeta,
-          dueToday
-        )
+      ? await remediateColdStart(supabase, userId, unstudiedPrereqIds, dueToday)
       : [];
 
   const coldStartItems: PlanItem[] = buildColdStartItems(

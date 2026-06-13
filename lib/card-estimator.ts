@@ -11,6 +11,7 @@
  */
 
 import type { Tables } from "@/types/database";
+import { derivationCardMinutes, parseDerivationPayload } from "@/lib/derivation";
 
 type SrsCard = Tables<"srs_cards">;
 
@@ -32,15 +33,22 @@ function clamp(value: number, min: number, max: number): number {
  * Estimate the minutes a single card will take to review (spec §5.1).
  *
  * - cold-start primer (`source_type === 'cold_start_primer'`) → 5.0 (one-time)
+ * - derivation (`card_type === 'derivation'`) → 2.0 + 0.5·steps, clamped [3, 6]
  * - 'new' | 'learning' | 'relearning'                         → 1.5
  * - 'review' → 0.5 + 0.5·(difficulty / 10), clamped to [0.5, 1.0]
  *
- * Cold-start primers are checked first since their effort is independent of FSRS
- * state. Unknown states fall back to the learning estimate (conservative).
+ * Cold-start primers and derivations are checked first since their effort is
+ * independent of FSRS state. Unknown states fall back to the learning estimate
+ * (conservative).
  */
 export function estimateCardMinutes(card: SrsCard): number {
   if (card.source_type === "cold_start_primer") {
     return COLD_START_PRIMER_MINUTES;
+  }
+
+  if (card.card_type === "derivation") {
+    const payload = parseDerivationPayload(card.payload);
+    return derivationCardMinutes(payload?.steps.length ?? 0);
   }
 
   switch (card.state) {

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { RelatedConcepts } from "@/components/app/RelatedConcepts";
 import { PrerequisitesEditor } from "@/components/app/PrerequisitesEditor";
 import { ConceptNotesCard } from "@/components/app/ConceptNotesCard";
+import { DerivationDrillCard } from "@/components/app/DerivationDrillCard";
 
 export const metadata = { title: "Concept Details — MasteryOS" };
 
@@ -107,6 +108,20 @@ export default async function AIMLConceptPage({ params }: { params: Promise<{ id
               )}
             </div>
           </div>
+
+          <DerivationDrillCard
+            conceptId={concept.id}
+            initialDerivations={
+              Array.isArray(concept.derivations)
+                ? (concept.derivations as unknown as {
+                    title: string;
+                    card_id: string;
+                    generated_at: string;
+                  }[])
+                : []
+            }
+            hasNotes={Boolean(concept.notes && concept.notes.trim().length > 0)}
+          />
 
           <RelatedConcepts sourceId={concept.id} sourceType="aiml_concept" />
 

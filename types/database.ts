@@ -41,6 +41,7 @@ export type Database = {
           centrality: number | null
           concept_type: string | null
           created_at: string
+          derivations: Json | null
           id: string
           mastery_score: number | null
           notes: string | null
@@ -57,6 +58,7 @@ export type Database = {
           centrality?: number | null
           concept_type?: string | null
           created_at?: string
+          derivations?: Json | null
           id?: string
           mastery_score?: number | null
           notes?: string | null
@@ -73,6 +75,7 @@ export type Database = {
           centrality?: number | null
           concept_type?: string | null
           created_at?: string
+          derivations?: Json | null
           id?: string
           mastery_score?: number | null
           notes?: string | null
@@ -236,6 +239,54 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "dsa_problems_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feynman_sessions: {
+        Row: {
+          cards_generated: number
+          concept_id: string | null
+          created_at: string
+          evaluation: Json | null
+          id: string
+          mastery_score: number | null
+          messages: Json
+          user_id: string
+        }
+        Insert: {
+          cards_generated?: number
+          concept_id?: string | null
+          created_at?: string
+          evaluation?: Json | null
+          id?: string
+          mastery_score?: number | null
+          messages?: Json
+          user_id: string
+        }
+        Update: {
+          cards_generated?: number
+          concept_id?: string | null
+          created_at?: string
+          evaluation?: Json | null
+          id?: string
+          mastery_score?: number | null
+          messages?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feynman_sessions_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "aiml_concepts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feynman_sessions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -617,6 +668,7 @@ export type Database = {
           id: string
           lapses: number
           last_review: string | null
+          payload: Json | null
           reps: number
           scheduled_days: number
           source_id: string
@@ -636,6 +688,7 @@ export type Database = {
           id?: string
           lapses: number
           last_review?: string | null
+          payload?: Json | null
           reps: number
           scheduled_days: number
           source_id: string
@@ -655,6 +708,7 @@ export type Database = {
           id?: string
           lapses?: number
           last_review?: string | null
+          payload?: Json | null
           reps?: number
           scheduled_days?: number
           source_id?: string

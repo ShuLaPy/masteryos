@@ -10,28 +10,83 @@ interface ConceptToSeed {
   notes: string | null;
 }
 
-export async function getConceptsNeedingSeeds(
+/**
+ * Reclaim window for stuck seeding (roadmap Phase 1a). A concept left in
+ * 'seeding' longer than this — e.g. a fire-and-forget task that Vercel froze
+ * after the response — is considered abandoned and may be re-claimed.
+ */
+const SEEDING_STALE_MS = 10 * 60 * 1000;
+
+/**
+ * Atomically claim concepts for cold-start seeding (roadmap Phase 1a — single
+ * seeding authority / race fix).
+ *
+ * Two independent paths seed prerequisite cards: the lecture create/update routes
+ * (fire-and-forget) and plan generation (remediateColdStart, awaited). Both
+ * previously gated only on "concept has no cards", so the same concept could be
+ * seeded twice when they overlapped. This claim closes the race: the UPDATE …
+ * WHERE card_status IN ('none' | stale 'seeding') is a single atomic statement,
+ * so exactly one caller flips a given row to 'seeding' and gets it back.
+ *
+ * Stale 'seeding' rows are re-claimable so a frozen fire-and-forget never leaves
+ * a prereq permanently un-seeded. Concepts that already have cards (seeded by a
+ * path that didn't update card_status) are filtered out as a final guard.
+ */
+export async function claimConceptsForSeeding(
   supabase: SupabaseClient<Database>,
   conceptIds: string[]
 ): Promise<ConceptToSeed[]> {
   if (conceptIds.length === 0) return [];
 
-  const { data: concepts, error } = await supabase
+  const now = new Date();
+  const staleCutoff = new Date(now.getTime() - SEEDING_STALE_MS).toISOString();
+
+  const { data: claimed } = await supabase
     .from("aiml_concepts")
-    .select("id, title, notes")
+    .update({ card_status: "seeding", card_status_updated_at: now.toISOString() })
     .in("id", conceptIds)
-    .eq("card_status", "none");
+    .or(`card_status.eq.none,and(card_status.eq.seeding,card_status_updated_at.lt.${staleCutoff})`)
+    .select("id, title, notes");
 
-  if (error || !concepts || concepts.length === 0) return [];
+  if (!claimed || claimed.length === 0) return [];
 
+  // Final guard: never re-seed a concept that already has cards.
   const { data: existingCards } = await supabase
     .from("srs_cards")
     .select("source_id")
     .eq("source_type", "aiml_concept")
-    .in("source_id", concepts.map((c) => c.id));
+    .in("source_id", claimed.map((c) => c.id));
 
-  const alreadySeeded = new Set((existingCards ?? []).map((c) => c.source_id));
-  return concepts.filter((c) => !alreadySeeded.has(c.id));
+  const hasCards = new Set((existingCards ?? []).map((c) => c.source_id));
+  const unseeded = claimed.filter((c) => !hasCards.has(c.id));
+
+  // Release any claim we won't use so it isn't stuck in 'seeding'.
+  const releaseIds = claimed.filter((c) => hasCards.has(c.id)).map((c) => c.id);
+  if (releaseIds.length > 0) {
+    await supabase
+      .from("aiml_concepts")
+      .update({ card_status: "seeded", card_status_updated_at: now.toISOString() })
+      .in("id", releaseIds);
+  }
+
+  return unseeded;
+}
+
+/**
+ * Reset a seeding claim back to 'none' so it can be retried (roadmap Phase 1a).
+ * Called when seeding fails after the row was claimed, so the prereq doesn't get
+ * stuck in 'seeding' until the stale window elapses.
+ */
+export async function releaseSeedingClaim(
+  supabase: SupabaseClient<Database>,
+  conceptIds: string[]
+): Promise<void> {
+  if (conceptIds.length === 0) return;
+  await supabase
+    .from("aiml_concepts")
+    .update({ card_status: "none", card_status_updated_at: new Date().toISOString() })
+    .in("id", conceptIds)
+    .eq("card_status", "seeding");
 }
 
 export function fireAndForgetSeedConcepts(
@@ -60,6 +115,8 @@ Return ONLY valid JSON, no markdown:
           console.error(
             `[concept-seeder] Skipping concept ${concept.id}: ${result.error ?? "fewer than 3 cards returned"}`
           );
+          // Release the claim so this prereq can be retried by either path.
+          await releaseSeedingClaim(admin, [concept.id]);
           continue;
         }
 
@@ -80,6 +137,7 @@ Return ONLY valid JSON, no markdown:
           console.error(
             `[concept-seeder] Insert failed for concept ${concept.id}: ${insertErr.message}`
           );
+          await releaseSeedingClaim(admin, [concept.id]);
           continue;
         }
 
@@ -96,6 +154,7 @@ Return ONLY valid JSON, no markdown:
         }
       } catch (err) {
         console.error(`[concept-seeder] Unexpected error seeding concept ${concept.id}:`, err);
+        await releaseSeedingClaim(admin, [concept.id]).catch(() => {});
       }
     }
   })();
