@@ -136,9 +136,9 @@ export default async function AIMLTrackPage() {
                 {byWeek[week].length} concept{byWeek[week].length !== 1 ? "s" : ""}
               </span>
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-3">
               {byWeek[week].map((concept) => (
-                <Link key={concept.id} href={`/aiml/${concept.id}`}>
+                <Link key={concept.id} href={`/aiml/${concept.id}`} className="block">
                   <div className="glass rounded-xl p-4 flex items-center gap-4 hover:border-primary/30 transition-all group">
                     <div className={`w-2 h-2 rounded-full ${masteryColor(concept.mastery_score ?? 0).replace("text-", "bg-")}`} />
                     <div className="flex-1 min-w-0">
