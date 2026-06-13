@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import InterviewScorecard, { type ScorecardData } from "@/components/app/InterviewScorecard";
+import ExternalInterviewPrompt from "@/components/app/ExternalInterviewPrompt";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -360,6 +361,7 @@ export default function InterviewClient({
             Start this week&apos;s interview
           </Button>
         </div>
+        <ExternalInterviewPrompt />
       </div>
     );
   }
@@ -476,6 +478,9 @@ export default function InterviewClient({
               Your next interview unlocks next week. Strong answers raised mastery; gaps were turned
               into review cards.
             </p>
+            <div className="max-w-3xl mx-auto mt-6">
+              <ExternalInterviewPrompt />
+            </div>
           </div>
         )}
         <div ref={bottomRef} />
